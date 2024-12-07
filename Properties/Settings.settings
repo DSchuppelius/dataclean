@@ -1,0 +1,18 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="DataClean.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="cleanDirectories" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%;C:\Temp</Value>
+    </Setting>
+    <Setting Name="protectedDirectories" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">%WINDOWS%;%SYSTEM%;%PROGRAM_FILES%;%PROGRAM_FILES_X86%;%USERPROFILE%</Value>
+    </Setting>
+    <Setting Name="allowedSubdirectories" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%</Value>
+    </Setting>
+    <Setting Name="emptyTrash" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>
