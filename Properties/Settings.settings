@@ -3,16 +3,100 @@
   <Profiles />
   <Settings>
     <Setting Name="cleanDirectories" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%;C:\Temp</Value>
+      <Value Profile="(Default)">%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%;%PREFETCH%;%SOFTWARE_DISTRIBUTION%;%CRASH_DUMPS%;%THUMBNAIL_CACHE%;%EDGE_CACHE%;%CHROME_CACHE%;%FIREFOX_CACHE%;C:\Temp</Value>
     </Setting>
     <Setting Name="protectedDirectories" Type="System.String" Scope="Application">
       <Value Profile="(Default)">%WINDOWS%;%SYSTEM%;%PROGRAM_FILES%;%PROGRAM_FILES_X86%;%USERPROFILE%</Value>
     </Setting>
     <Setting Name="allowedSubdirectories" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%</Value>
+      <Value Profile="(Default)">%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%;%PREFETCH%;%SOFTWARE_DISTRIBUTION%;%CRASH_DUMPS%;%THUMBNAIL_CACHE%;%EDGE_CACHE%;%CHROME_CACHE%;%FIREFOX_CACHE%</Value>
     </Setting>
     <Setting Name="emptyTrash" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="minFileAgeDays" Type="System.Int32" Scope="Application">
+      <Value Profile="(Default)">0</Value>
+    </Setting>
+    <Setting Name="removeWindowsOld" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="flushDnsCache" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="clearEventLogs" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="healthCheckEnabled" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="minFreeDiskPercent" Type="System.Int32" Scope="Application">
+      <Value Profile="(Default)">5</Value>
+    </Setting>
+    <Setting Name="notifyByTray" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="notifyByEmail" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="smtpHost" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="smtpPort" Type="System.Int32" Scope="Application">
+      <Value Profile="(Default)">25</Value>
+    </Setting>
+    <Setting Name="smtpEnableSsl" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="notifyFromAddress" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="notifyToAddress" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="dryRun" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="createRestorePoint" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="deleteToRecycleBin" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="cleanBrowserCaches" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="dismComponentCleanup" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="cleanMinidumps" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="cleanPrefetch" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="cleanDeliveryOptimization" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="cleanOldLogs" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="oldLogAgeDays" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">30</Value>
+    </Setting>
+    <Setting Name="emptyAllRecycleBins" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="generateReport" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="reportPath" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="reportFormat" Type="System.String" Scope="User">
+      <Value Profile="(Default)">HTML</Value>
+    </Setting>
+    <Setting Name="emailReport" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
     </Setting>
   </Settings>
 </SettingsFile>

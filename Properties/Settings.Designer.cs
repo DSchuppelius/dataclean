@@ -12,7 +12,7 @@ namespace DataClean.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.10.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.11.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -25,13 +25,13 @@ namespace DataClean.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%;C:\\Temp")]
+        [global::System.Configuration.DefaultSettingValueAttribute("%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%;%PREFETCH%;%SOFTWARE_DISTRIBUTION%;%CRASH_DUMPS%;%THUMBNAIL_CACHE%;%EDGE_CACHE%;%CHROME_CACHE%;%FIREFOX_CACHE%;C:\\Temp")]
         public string cleanDirectories {
             get {
                 return ((string)(this["cleanDirectories"]));
             }
         }
-        
+
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("%WINDOWS%;%SYSTEM%;%PROGRAM_FILES%;%PROGRAM_FILES_X86%;%USERPROFILE%")]
@@ -40,22 +40,319 @@ namespace DataClean.Properties {
                 return ((string)(this["protectedDirectories"]));
             }
         }
-        
+
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%")]
+        [global::System.Configuration.DefaultSettingValueAttribute("%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%;%PREFETCH%;%SOFTWARE_DISTRIBUTION%;%CRASH_DUMPS%;%THUMBNAIL_CACHE%;%EDGE_CACHE%;%CHROME_CACHE%;%FIREFOX_CACHE%")]
         public string allowedSubdirectories {
             get {
                 return ((string)(this["allowedSubdirectories"]));
             }
         }
-        
+
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("True")]
         public bool emptyTrash {
             get {
                 return ((bool)(this["emptyTrash"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int minFileAgeDays {
+            get {
+                return ((int)(this["minFileAgeDays"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool removeWindowsOld {
+            get {
+                return ((bool)(this["removeWindowsOld"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool flushDnsCache {
+            get {
+                return ((bool)(this["flushDnsCache"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool clearEventLogs {
+            get {
+                return ((bool)(this["clearEventLogs"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool healthCheckEnabled {
+            get {
+                return ((bool)(this["healthCheckEnabled"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("5")]
+        public int minFreeDiskPercent {
+            get {
+                return ((int)(this["minFreeDiskPercent"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool notifyByTray {
+            get {
+                return ((bool)(this["notifyByTray"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool notifyByEmail {
+            get {
+                return ((bool)(this["notifyByEmail"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string smtpHost {
+            get {
+                return ((string)(this["smtpHost"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("25")]
+        public int smtpPort {
+            get {
+                return ((int)(this["smtpPort"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool smtpEnableSsl {
+            get {
+                return ((bool)(this["smtpEnableSsl"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string notifyFromAddress {
+            get {
+                return ((string)(this["notifyFromAddress"]));
+            }
+        }
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string notifyToAddress {
+            get {
+                return ((string)(this["notifyToAddress"]));
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool dryRun {
+            get {
+                return ((bool)(this["dryRun"]));
+            }
+            set {
+                this["dryRun"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool createRestorePoint {
+            get {
+                return ((bool)(this["createRestorePoint"]));
+            }
+            set {
+                this["createRestorePoint"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool deleteToRecycleBin {
+            get {
+                return ((bool)(this["deleteToRecycleBin"]));
+            }
+            set {
+                this["deleteToRecycleBin"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool cleanBrowserCaches {
+            get {
+                return ((bool)(this["cleanBrowserCaches"]));
+            }
+            set {
+                this["cleanBrowserCaches"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool dismComponentCleanup {
+            get {
+                return ((bool)(this["dismComponentCleanup"]));
+            }
+            set {
+                this["dismComponentCleanup"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool cleanMinidumps {
+            get {
+                return ((bool)(this["cleanMinidumps"]));
+            }
+            set {
+                this["cleanMinidumps"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool cleanPrefetch {
+            get {
+                return ((bool)(this["cleanPrefetch"]));
+            }
+            set {
+                this["cleanPrefetch"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool cleanDeliveryOptimization {
+            get {
+                return ((bool)(this["cleanDeliveryOptimization"]));
+            }
+            set {
+                this["cleanDeliveryOptimization"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool cleanOldLogs {
+            get {
+                return ((bool)(this["cleanOldLogs"]));
+            }
+            set {
+                this["cleanOldLogs"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("30")]
+        public int oldLogAgeDays {
+            get {
+                return ((int)(this["oldLogAgeDays"]));
+            }
+            set {
+                this["oldLogAgeDays"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool emptyAllRecycleBins {
+            get {
+                return ((bool)(this["emptyAllRecycleBins"]));
+            }
+            set {
+                this["emptyAllRecycleBins"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool generateReport {
+            get {
+                return ((bool)(this["generateReport"]));
+            }
+            set {
+                this["generateReport"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string reportPath {
+            get {
+                return ((string)(this["reportPath"]));
+            }
+            set {
+                this["reportPath"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("HTML")]
+        public string reportFormat {
+            get {
+                return ((string)(this["reportFormat"]));
+            }
+            set {
+                this["reportFormat"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool emailReport {
+            get {
+                return ((bool)(this["emailReport"]));
+            }
+            set {
+                this["emailReport"] = value;
             }
         }
     }

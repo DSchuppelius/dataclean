@@ -8,10 +8,10 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("DataClean")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Daneil Jörg Schuppelius")]
+[assembly: AssemblyCompany("Daniel Jörg Schuppelius")]
 [assembly: AssemblyProduct("DataClean")]
-[assembly: AssemblyCopyright("Copyright © Daneil Jörg Schuppelius 2017")]
-[assembly: AssemblyTrademark("Daneil Jörg Schuppelius")]
+[assembly: AssemblyCopyright("Copyright © Daniel Jörg Schuppelius 2017")]
+[assembly: AssemblyTrademark("Daniel Jörg Schuppelius")]
 [assembly: AssemblyCulture("")]
 
 // Durch Festlegen von ComVisible auf "false" werden die Typen in dieser Assembly unsichtbar 
