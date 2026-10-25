@@ -94,6 +94,7 @@
     </Compile>
     <Compile Include="DeleteForm.CleanupTasks.cs">
       <DependentUpon>DeleteForm.cs</DependentUpon>
+      <SubType>Form</SubType>
     </Compile>
     <Compile Include="DeleteForm.Designer.cs">
       <DependentUpon>DeleteForm.cs</DependentUpon>
