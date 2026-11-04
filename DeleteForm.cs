@@ -203,6 +203,11 @@ namespace DataClean {
         }
 
         private void DeleteForm_Shown(object sender, EventArgs e) {
+            // Das Fenster liegt nicht dauerhaft im Vordergrund, startet interaktiv aber vorn.
+            if (!unattended) {
+                Activate();
+            }
+
             LoadConfiguration();
             StartCleanup();
 

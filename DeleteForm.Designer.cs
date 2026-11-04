@@ -718,10 +718,8 @@
             this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "DeleteForm";
-            this.ShowInTaskbar = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Daniel Jörg Schuppelius - Informationstechnische Unternehmensdienstleistungen";
-            this.TopMost = true;
             this.Shown += new System.EventHandler(this.DeleteForm_Shown);
             this.overviewPage.ResumeLayout(false);
             this.overviewPage.PerformLayout();
