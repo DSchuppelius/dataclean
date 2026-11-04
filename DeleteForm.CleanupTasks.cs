@@ -76,7 +76,9 @@ namespace DataClean {
                 long size = GetFileLength(memFile);
                 if (await TryDeleteItemAsync(memFile)) {
                     System.Threading.Interlocked.Add(ref freedBytes, size);
-                    LogToDetailTextBox($"MEMORY.DMP entfernt: {FormatBytes(size)}");
+                    if (!dryRun) {
+                        LogToDetailTextBox($"MEMORY.DMP entfernt: {FormatBytes(size)}");
+                    }
                 }
             }
 
@@ -143,7 +145,9 @@ namespace DataClean {
                     long size = GetFileLength(file);
                     if (await TryDeleteItemAsync(file)) {
                         System.Threading.Interlocked.Add(ref freedBytes, size);
-                        LogToDetailTextBox($"Altes Protokoll entfernt: {file.FullName}");
+                        if (!dryRun) {
+                            LogToDetailTextBox($"Altes Protokoll entfernt: {file.FullName}");
+                        }
                     }
                 }
             }

@@ -301,6 +301,11 @@ namespace DataClean {
         }
 
         private void EmptyRecycleBin() {
+            if (dryRun) {
+                LogToDetailTextBox("[Vorschau] Würde den Papierkorb leeren.");
+                return;
+            }
+
             try {
                 // Leert den Papierkorb ohne Bestätigung, ohne UI und ohne Sound
                 int result = NativeMethods.SHEmptyRecycleBin(IntPtr.Zero, null, NativeMethods.SHERB_NOCONFIRMATION | NativeMethods.SHERB_NOPROGRESSUI | NativeMethods.SHERB_NOSOUND);
@@ -437,7 +442,7 @@ namespace DataClean {
             try {
                 Invoke(new Action(() => {
                     UpdateStatusLabel(directoryValueLabel, "Windows.old");
-                    UpdateStatusLabel(label1, "Entferne Windows.old...", themeStatusText);
+                    UpdateStatusLabel(label1, dryRun ? "Prüfe Windows.old..." : "Entferne Windows.old...", themeStatusText);
                 }));
 
                 string systemDrive = Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.Windows));
@@ -452,7 +457,9 @@ namespace DataClean {
                 bool deleted = await TryDeleteItemAsync(windowsOld);
                 if (deleted) {
                     freedBytes += size;
-                    LogToDetailTextBox($"Windows.old entfernt: {FormatBytes(size)}");
+                    if (!dryRun) {
+                        LogToDetailTextBox($"Windows.old entfernt: {FormatBytes(size)}");
+                    }
                 } else {
                     LogToDetailTextBox("Windows.old konnte nicht vollständig entfernt werden (Administratorrechte erforderlich).");
                 }
@@ -462,6 +469,11 @@ namespace DataClean {
         }
 
         private void FlushDnsCache() {
+            if (dryRun) {
+                LogToDetailTextBox("[Vorschau] Würde den DNS-Cache leeren.");
+                return;
+            }
+
             try {
                 Invoke(new Action(() => UpdateStatusLabel(label1, "Leere DNS-Cache...", themeStatusText)));
 
@@ -484,6 +496,11 @@ namespace DataClean {
         }
 
         private void ClearEventLogs() {
+            if (dryRun) {
+                LogToDetailTextBox("[Vorschau] Würde die Windows-Event-Logs leeren.");
+                return;
+            }
+
             try {
                 Invoke(new Action(() => UpdateStatusLabel(label1, "Leere Windows-Event-Logs...", themeStatusText)));
 
@@ -642,8 +659,9 @@ namespace DataClean {
                 }
 
                 // Wenn der Windows-Update-Download-Ordner bereinigt werden soll, müssen die
-                // sperrenden Dienste (Windows Update, BITS) zuvor gestoppt werden.
-                bool needsUpdateServices = cleaningDirectories.Any(d =>
+                // sperrenden Dienste (Windows Update, BITS) zuvor gestoppt werden. Im
+                // Vorschau-Modus wird nichts gelöscht, die Dienste laufen also einfach weiter.
+                bool needsUpdateServices = !dryRun && cleaningDirectories.Any(d =>
                     d.FullName.IndexOf("SoftwareDistribution", StringComparison.OrdinalIgnoreCase) >= 0);
 
                 if (needsUpdateServices) {
@@ -676,12 +694,14 @@ namespace DataClean {
 
                 if (emptyTrash) {
                     await BeginPhaseAsync("Papierkorb leeren", cancellationToken);
-                    Invoke(new Action(() => {
-                        UpdateStatusLabel(directoryValueLabel, $"Papierkorb");
-                        UpdateStatusLabel(label1, "Leere Papierkorb....", themeStatusText);
-                        EmptyRecycleBin();
-                        UpdateStatusLabel(label1, "Leere Papierkorb... beendet", themeStatusText);
-                    }));
+                    UpdateStatusLabel(directoryValueLabel, "Papierkorb");
+                    if (!dryRun) {
+                        UpdateStatusLabel(label1, "Leere Papierkorb...", themeStatusText);
+                    }
+                    EmptyRecycleBin();
+                    if (!dryRun) {
+                        UpdateStatusLabel(label1, "Papierkorb geleert.", themeStatusText);
+                    }
                 }
 
                 if (removeWindowsOld) {
