@@ -1158,15 +1158,21 @@ namespace DataClean {
 
             RecordRunHistory(canceled: false);
 
-            string freedText = $"Freigegebener Speicher: {FormatBytes(freedBytes)}";
+            string freedText = dryRun
+                ? $"Freigebbarer Speicher: {FormatBytes(freedBytes)}"
+                : $"Freigegebener Speicher: {FormatBytes(freedBytes)}";
 
             // Abschluss-Benachrichtigung im Infobereich (falls aktiviert) – besonders
             // nützlich im minimierten Zustand oder beim unbeaufsichtigten Lauf.
             if (Properties.Settings.Default.notifyByTray) {
                 bool withErr = failedItemCount > 0;
                 ShowTrayNotification(
-                    withErr ? "DataClean – mit Fehlern abgeschlossen" : "DataClean – Bereinigung abgeschlossen",
-                    $"{deletedItemCount} Elemente entfernt. {freedText}.",
+                    withErr
+                        ? "DataClean – mit Fehlern abgeschlossen"
+                        : (dryRun ? "DataClean – Vorschau abgeschlossen" : "DataClean – Bereinigung abgeschlossen"),
+                    dryRun
+                        ? $"{deletedItemCount} Elemente würden entfernt. {freedText}."
+                        : $"{deletedItemCount} Elemente entfernt. {freedText}.",
                     withErr ? ToolTipIcon.Warning : ToolTipIcon.Info);
             }
 
@@ -1188,9 +1194,9 @@ namespace DataClean {
                 ShowFinishedState(withErrors
                     ? "Mit Fehlern abgeschlossen"
                     : (dryRun ? "Vorschau abgeschlossen" : "Bereinigung abgeschlossen"));
-                UpdateStatusLabel(label1, (withErrors
-                    ? "Mit Fehlern abgeschlossen. Siehe Details."
-                    : "Erfolgreich abgeschlossen.") + $" {freedText}", withErrors ? themeError : themeSuccess);
+                UpdateStatusLabel(label1, (dryRun
+                    ? "Es wurde nichts gelöscht."
+                    : (withErrors ? "Mit Fehlern abgeschlossen. Siehe Details." : "Erfolgreich abgeschlossen.")) + $" {freedText}", withErrors ? themeError : themeSuccess);
             }));
 
             await Task.Delay(2500);
