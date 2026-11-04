@@ -169,7 +169,6 @@
       <DependentUpon>FuturisticForm.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="DataClean_TemporaryKey.pfx" />
-    <None Include="patch2.ps1" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -179,7 +178,6 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <None Include="write-testcsproj.ps1" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

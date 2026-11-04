@@ -40,8 +40,6 @@
     <Compile Include="DirectoryWalkerTests.cs" />
     <Compile Include="ExcludeRuleMatcherTests.cs" />
     <Compile Include="CleanupProfileTests.cs" />
-    <Compile Include="DataClean.Tests\SecureSettingsTests.cs" />
-    <Compile Include="DataClean.Tests\SizeEstimatorTests.cs" />
     <Compile Include="DirectoryProtectionServiceTests.cs" />
     <Compile Include="FileAgeFilterTests.cs" />
     <Compile Include="ReportBuilderTests.cs" />
