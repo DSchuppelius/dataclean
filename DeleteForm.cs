@@ -203,7 +203,7 @@ namespace DataClean {
         }
 
         private void DeleteForm_Shown(object sender, EventArgs e) {
-            // Das Fenster liegt nicht dauerhaft im Vordergrund, startet interaktiv aber vorn.
+            // Interaktiv mit Fokus starten; unbeaufsichtigte Läufe nehmen keinen Fokus.
             if (!unattended) {
                 Activate();
             }
@@ -343,10 +343,9 @@ namespace DataClean {
                 var issues = HealthCheck.Run(minFreeDiskPercent);
                 pendingHealthIssues = issues;
 
-                var critical = issues.Where(i => i.Severity == HealthSeverity.Critical).ToList();
-                if (critical.Count > 0) {
-                    severeHealthIssueDetected = true;
-                    NotifySevereIssues(critical);
+                severeHealthIssueDetected = issues.Any(i => i.Severity == HealthSeverity.Critical);
+                if (issues.Count > 0) {
+                    NotifyHealthIssues(issues);
                 }
             } catch (Exception ex) {
                 LogError(ex);
@@ -375,25 +374,29 @@ namespace DataClean {
             }
         }
 
-        private void NotifySevereIssues(List<HealthIssue> issues) {
+        private void NotifyHealthIssues(List<HealthIssue> issues) {
+            // Das Fenster schließt sich meist von selbst, das Protokoll bleibt als Nachweis.
+            foreach (HealthIssue issue in issues) {
+                Services.Logger.Warn($"Systemprüfung: {issue}", "DeleteForm");
+            }
+
+            bool severe = issues.Any(i => i.Severity == HealthSeverity.Critical);
             string machine = Environment.MachineName;
-            string title = $"DataClean: Schwerwiegende Systemfehler auf {machine}";
-            string body = "Folgende schwerwiegende Probleme wurden erkannt:" + Environment.NewLine + Environment.NewLine +
+            string title = severe
+                ? $"DataClean: Schwerwiegende Systemfehler auf {machine}"
+                : $"DataClean: Hinweise der Systemprüfung auf {machine}";
+            string body = (severe ? "Folgende schwerwiegende Probleme wurden erkannt:" : "Folgende Probleme wurden erkannt:") + Environment.NewLine + Environment.NewLine +
                 string.Join(Environment.NewLine, issues.Select(i => $"- {i.Category}: {i.Message}")) +
                 Environment.NewLine + Environment.NewLine +
                 $"Erkannt am {DateTime.Now:yyyy-MM-dd HH:mm:ss}.";
 
             if (Properties.Settings.Default.notifyByTray) {
-                ShowTrayNotification(title, body);
+                ShowTrayNotification(title, body, severe ? ToolTipIcon.Error : ToolTipIcon.Warning);
             }
 
             if (Properties.Settings.Default.notifyByEmail) {
                 SendEmailNotification(title, body);
             }
-        }
-
-        private void ShowTrayNotification(string title, string body) {
-            ShowTrayNotification(title, body, ToolTipIcon.Error);
         }
 
         private void ShowTrayNotification(string title, string body, ToolTipIcon icon) {
@@ -628,12 +631,7 @@ namespace DataClean {
                         ShowFinishedState("Bereinigung übersprungen");
                         UpdateStatusLabel(label1, $"Genügend freier Speicher (> {minFreeDiskPercent} %).", themeSuccess);
                     }));
-                    if (unattended) {
-                        Invoke(new Action(() => {
-                            notifyIcon1.Visible = false;
-                            Application.Exit();
-                        }));
-                    }
+                    await CloseWhenIdleAsync(unattended ? 0 : AutoCloseDelayMs);
                     return;
                 }
 
@@ -649,10 +647,7 @@ namespace DataClean {
                         LogToDetailTextBox("=== Bereinigung durch Benutzer abgebrochen (Vorschau) ===");
                         // Der Benutzer hat das Löschen abgelehnt, bevor etwas passiert ist –
                         // die Anwendung kann direkt geschlossen werden.
-                        Invoke(new Action(() => {
-                            notifyIcon1.Visible = false;
-                            Application.Exit();
-                        }));
+                        CloseApplication();
                         return;
                     }
                 }
@@ -765,7 +760,7 @@ namespace DataClean {
                 if (generateReport) {
                     WriteReport();
                 }
-                CompleteProcessCanceled();
+                await CompleteProcessCanceled();
             } catch (Exception ex) {
                 // Bei unerwartetem Fehler Report noch schreiben, damit die Statistik nicht verloren geht.
                 if (generateReport) {
@@ -1194,12 +1189,13 @@ namespace DataClean {
                 ShowFinishedState(withErrors
                     ? "Mit Fehlern abgeschlossen"
                     : (dryRun ? "Vorschau abgeschlossen" : "Bereinigung abgeschlossen"));
+                ShowHealthWarnings();
                 UpdateStatusLabel(label1, (dryRun
                     ? "Es wurde nichts gelöscht."
                     : (withErrors ? "Mit Fehlern abgeschlossen. Siehe Details." : "Erfolgreich abgeschlossen.")) + $" {freedText}", withErrors ? themeError : themeSuccess);
             }));
 
-            await Task.Delay(2500);
+            await Task.Delay(ResultVisibleMs);
 
             if (severeHealthIssueDetected) {
                 Invoke(new Action(() => {
@@ -1211,18 +1207,12 @@ namespace DataClean {
                 return; // Kein automatisches Schließen bei schwerem Fehler.
             }
 
-            // Automatisch schließen, sofern der Benutzer nicht mit Details, Protokoll
-            // oder Einstellungen arbeitet.
-            if (!StayOpenAfterRun) {
-                await Task.Delay(5000);
-            }
-            if (!StayOpenAfterRun) {
-                Application.Exit();
-            }
+            // Ohne besondere Vorkommnisse schließt sich die Anwendung von selbst.
+            await CloseWhenIdleAsync(AutoCloseDelayMs - ResultVisibleMs);
         }
 
         // Abschlusslogik nach einem vom Benutzer ausgelösten Abbruch.
-        private void CompleteProcessCanceled() {
+        private async Task CompleteProcessCanceled() {
             Services.Logger.Warn("Bereinigung wurde vom Benutzer abgebrochen.", "DeleteForm");
 
             RecordRunHistory(canceled: true);
@@ -1235,6 +1225,8 @@ namespace DataClean {
                 ShowFinishedState("Vorgang abgebrochen");
                 UpdateStatusLabel(label1, $"Nicht alle Bereiche wurden bereinigt. Freigegebener Speicher: {FormatBytes(freedBytes)}", themeError);
             }));
+
+            await CloseWhenIdleAsync(AutoCloseDelayMs);
         }
 
         // Schreibt die Lauf-Historie (einmalig pro Lauf) in den persistenten Speicher.

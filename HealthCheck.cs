@@ -9,7 +9,9 @@ namespace DataClean {
     /// Schweregrad eines erkannten System-/Hardwareproblems.
     /// </summary>
     public enum HealthSeverity {
+        /// <summary>Wird gemeldet und protokolliert; die Anwendung schließt sich normal.</summary>
         Warning,
+        /// <summary>Drohender Hardware-Ausfall: Das Fenster bleibt offen, bis es geschlossen wird.</summary>
         Critical
     }
 
@@ -124,7 +126,7 @@ namespace DataClean {
 
                     double freePercent = (double)drive.TotalFreeSpace / drive.TotalSize * 100.0;
                     if (freePercent < minFreeDiskPercent) {
-                        result.Add(new HealthIssue(HealthSeverity.Critical, "Speicherplatz",
+                        result.Add(new HealthIssue(HealthSeverity.Warning, "Speicherplatz",
                             $"Laufwerk {drive.Name} hat nur noch {freePercent:0.#}% freien Speicher."));
                     }
                 }
@@ -197,7 +199,7 @@ namespace DataClean {
                                              .Select(kv => $"{kv.Key} ({kv.Value})")) + "."
                             : " Die betroffenen Datenträger konnten nicht eindeutig ermittelt werden.";
 
-                        result.Add(new HealthIssue(HealthSeverity.Critical, "Datenträger",
+                        result.Add(new HealthIssue(HealthSeverity.Warning, "Datenträger",
                             $"{diskErrors} schwere Datenträgerfehler in den letzten 24 Stunden erkannt.{disksText}"));
                     }
                 }

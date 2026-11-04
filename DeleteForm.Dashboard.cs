@@ -34,6 +34,9 @@ namespace DataClean {
         private const int MaxActivityEntries = 5000;
         private const int ActivityTrimThreshold = 500;
         private const int DashboardRefreshMs = 200;
+        private const int ResultVisibleMs = 2500;
+        private const int AutoCloseDelayMs = 7500;
+        private const int IdlePollMs = 250;
 
         private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
 
@@ -50,7 +53,6 @@ namespace DataClean {
         private Page currentPage = Page.Overview;
 
         private volatile bool isPaused;
-        private volatile bool keepOpenAfterRun;
 
         // Fensterhöhe: ohne Details bleibt die Übersicht kompakt, alle anderen Ansichten
         // brauchen die volle Höhe. Die vom Benutzer gezogene Höhe wird wiederhergestellt.
@@ -70,8 +72,9 @@ namespace DataClean {
         private Color themeSuccess;
         private Color themeError;
 
+        // Solange jemand Details oder eine andere Seite offen hat, wartet das automatische Schließen.
         private bool StayOpenAfterRun {
-            get { return keepOpenAfterRun || detailsExpanded; }
+            get { return detailsExpanded || currentPage != Page.Overview; }
         }
 
         private string RunningTitle {
@@ -140,10 +143,6 @@ namespace DataClean {
 
             currentPage = page;
 
-            // Beim Lesen oder Bearbeiten nicht automatisch schließen.
-            if (page == Page.Log || page == Page.Settings) {
-                keepOpenAfterRun = true;
-            }
             if (page == Page.Log) {
                 FlushDetailLog();
             }
@@ -208,11 +207,51 @@ namespace DataClean {
         }
 
         private void ExitApplication() {
-            if (!settingsPage.ConfirmLeave()) {
+            if (settingsPage.ConfirmLeave()) {
+                CloseApplication();
+            }
+        }
+
+        // Schließt die Anwendung, sobald sie die angegebene Zeit unbenutzt war. Wer Details oder
+        // eine andere Seite offen hat, liest in Ruhe; danach läuft die Wartezeit neu an.
+        private async Task CloseWhenIdleAsync(int idleMs) {
+            int idle = 0;
+            while (idle < idleMs || StayOpenAfterRun) {
+                await Task.Delay(IdlePollMs);
+                idle = StayOpenAfterRun ? 0 : idle + IdlePollMs;
+            }
+            CloseApplication();
+        }
+
+        // Hinweise der Systemprüfung stehen bis zum Schließen unter dem Fortschritt.
+        private void ShowHealthWarnings() {
+            List<HealthIssue> warnings = pendingHealthIssues?.Where(i => i.Severity == HealthSeverity.Warning).ToList();
+            if (warnings == null || warnings.Count == 0) {
                 return;
             }
-            notifyIcon1.Visible = false;
-            Application.Exit();
+
+            string more = warnings.Count == 2 ? " (+1 weiterer Hinweis)" : (warnings.Count > 2 ? $" (+{warnings.Count - 1} weitere Hinweise)" : string.Empty);
+            infoLine.Tone = UI.Tone.Warning;
+            infoLine.Text = warnings[0].Message + more;
+            infoLine.Visible = true;
+        }
+
+        // Beendet die Anwendung auf dem UI-Thread und entfernt das Symbol im Infobereich, das sonst
+        // nach einer Abschlussmeldung bis zum Überfahren mit der Maus stehen bliebe.
+        private void CloseApplication() {
+            if (IsDisposed || !IsHandleCreated) {
+                return;
+            }
+
+            Action close = () => {
+                notifyIcon1.Visible = false;
+                Application.Exit();
+            };
+            if (InvokeRequired) {
+                BeginInvoke(close);
+            } else {
+                close();
+            }
         }
 
         private void HistoryButton_Click(object sender, EventArgs e) {

@@ -46,6 +46,14 @@ Begleitdateien aus dem Release-Ausgabeverzeichnis.
 | `/verbose`        | Ausführliches Protokoll aktivieren                 |
 | `/help`, `/?`     | Hilfe anzeigen                                     |
 
+Eine geplante Aufgabe gilt auch ohne `/autostart` als unbeaufsichtigt: Die
+Anwendung löscht dann ohne Rückfrage und schließt sich 7,5 Sekunden nach dem
+Lauf von selbst. Offen bleibt sie nur bei drohenden Hardware-Ausfällen (SMART,
+Datenträgerstatus, Speicherfehler), einem unerwarteten Abbruch oder solange
+jemand Details oder eine andere Seite geöffnet hat. Wenig freier Speicher und
+Datenträgerfehler aus dem Ereignisprotokoll werden gemeldet und protokolliert,
+halten das Fenster aber nicht offen.
+
 ## Hinweis zu MSIX
 
 Eine MSIX-Paketierung ist möglich, erfordert jedoch ein zusätzliches
