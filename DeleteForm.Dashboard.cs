@@ -302,8 +302,8 @@ namespace DataClean {
             var parts = new List<string>();
             if (skipped > 0) {
                 parts.Add(skipped == 1
-                    ? "1 Element wurde übersprungen (z. B. in Verwendung oder durch Filter)."
-                    : $"{skipped.ToString("N0", GermanCulture)} Elemente wurden übersprungen (z. B. in Verwendung oder durch Filter).");
+                    ? "1 Element übersprungen (in Verwendung, kein Zugriff oder Filter)."
+                    : $"{skipped.ToString("N0", GermanCulture)} Elemente übersprungen (in Verwendung, kein Zugriff oder Filter).");
             }
             if (failed > 0) {
                 parts.Add(failed == 1

@@ -107,6 +107,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Services\ByteFormatter.cs" />
+    <Compile Include="Services\DirectoryWalker.cs" />
     <Compile Include="Services\Logger.cs" />
     <Compile Include="Services\DirectoryProtectionService.cs" />
     <Compile Include="Services\FileAgeFilter.cs" />

@@ -37,6 +37,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ByteFormatterTests.cs" />
+    <Compile Include="DirectoryWalkerTests.cs" />
     <Compile Include="ExcludeRuleMatcherTests.cs" />
     <Compile Include="CleanupProfileTests.cs" />
     <Compile Include="DataClean.Tests\SecureSettingsTests.cs" />

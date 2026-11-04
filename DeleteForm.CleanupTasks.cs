@@ -127,7 +127,7 @@ namespace DataClean {
                 // Streaming-Enumeration: Dateien werden lazy geliefert, sodass nicht alle
                 // FileInfo-Objekte gleichzeitig im Speicher gehalten werden. Unzugängliche
                 // Unterordner werden einzeln übersprungen, statt den gesamten Root abzubrechen.
-                foreach (var file in SafeEnumerateFiles(root)) {
+                foreach (var file in WalkDirectories(new DirectoryInfo(root)).SelectMany(Services.DirectoryWalker.EnumerateFiles)) {
                     await WaitIfPausedAsync(cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
 
@@ -219,46 +219,13 @@ namespace DataClean {
             }
         }
 
-        // Rekursive, speicherschonende Datei-Enumeration, die unzugängliche Unterordner
-        // einzeln überspringt, anstatt bei der ersten Ausnahme den gesamten Baum abzubrechen.
-        private static IEnumerable<FileInfo> SafeEnumerateFiles(string root) {
-            var pending = new Stack<string>();
-            pending.Push(root);
-
-            while (pending.Count > 0) {
-                string current = pending.Pop();
-
-                IEnumerable<string> subDirs = Enumerable.Empty<string>();
-                try {
-                    subDirs = Directory.EnumerateDirectories(current);
-                } catch (Exception ex) when (ex is UnauthorizedAccessException || ex is IOException) {
-                    // Unterordner nicht lesbar – überspringen.
-                }
-
-                foreach (var sub in subDirs) {
-                    pending.Push(sub);
-                }
-
-                IEnumerable<string> fileNames = Enumerable.Empty<string>();
-                try {
-                    fileNames = Directory.EnumerateFiles(current);
-                } catch (Exception ex) when (ex is UnauthorizedAccessException || ex is IOException) {
-                    continue;
-                }
-
-                foreach (var filePath in fileNames) {
-                    FileInfo info = null;
-                    try {
-                        info = new FileInfo(filePath);
-                    } catch {
-                        info = null;
-                    }
-
-                    if (info != null) {
-                        yield return info;
-                    }
-                }
-            }
+        // Durchläuft einen Ordnerbaum und zählt nicht lesbare Ordner als übersprungen.
+        private IEnumerable<DirectoryInfo> WalkDirectories(DirectoryInfo root) {
+            return Services.DirectoryWalker.Walk(root, unreadable => {
+                System.Threading.Interlocked.Increment(ref skippedItemCount);
+                LogToDetailTextBox($"Übersprungen (kein Zugriff): {unreadable.FullName}");
+                RecordActivity(ActivityStatus.Skipped, unreadable.FullName, 0);
+            });
         }
     }
 }

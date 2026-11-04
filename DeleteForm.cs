@@ -459,7 +459,7 @@ namespace DataClean {
                 }
 
                 long size = GetItemSize(windowsOld);
-                bool deleted = await TryDeleteItemAsync(windowsOld);
+                bool deleted = await TryDeleteItemAsync(windowsOld, recursive: true);
                 if (deleted) {
                     freedBytes += size;
                     if (!dryRun) {
@@ -816,11 +816,13 @@ namespace DataClean {
 
         private async Task ProcessDirectory(DirectoryInfo dir, CancellationToken cancellationToken) {
             try {
-                var files = dir.EnumerateFiles("*", SearchOption.AllDirectories).ToList();
+                List<DirectoryInfo> readable = WalkDirectories(dir).ToList();
+                var files = readable.SelectMany(Services.DirectoryWalker.EnumerateFiles).ToList();
 
                 // Verzeichnisse nach Tiefe sortieren (tiefste zuerst), damit untergeordnete
                 // Ordner vor den übergeordneten gelöscht werden.
-                var directories = dir.EnumerateDirectories("*", SearchOption.AllDirectories)
+                var directories = readable
+                    .Where(d => !ReferenceEquals(d, dir))
                     .OrderByDescending(d => d.FullName.Count(c => c == Path.DirectorySeparatorChar))
                     .ToList();
 
@@ -1010,19 +1012,20 @@ namespace DataClean {
             return 0;
         }
 
-        private async Task<bool> TryDeleteItemAsync(FileSystemInfo item) {
-            bool deleted = await TryDeleteItemCoreAsync(item);
+        // Ordner werden nur gelöscht, wenn sie leer sind: Was darin übrig blieb (gesperrt, ausgeschlossen,
+        // zu jung), bleibt erhalten. Nur wer einen ganzen Baum entfernen will, setzt recursive.
+        private async Task<bool> TryDeleteItemAsync(FileSystemInfo item, bool recursive = false) {
+            bool deleted = await TryDeleteItemCoreAsync(item, recursive);
             if (deleted) {
                 RecordActivity(ActivityStatus.Deleted, item);
             }
             return deleted;
         }
 
-        private async Task<bool> TryDeleteItemCoreAsync(FileSystemInfo item) {
+        private async Task<bool> TryDeleteItemCoreAsync(FileSystemInfo item, bool recursive) {
             const int maxAttempts = 3;
             string itemName = item.FullName;
             bool isFile = item is FileInfo;
-            bool recursive = minFileAgeDays <= 0;
             Exception lastException = null;
 
             // Benutzerdefinierte Ausschlussmuster respektieren: passende Elemente werden
@@ -1059,8 +1062,6 @@ namespace DataClean {
                     if (isFile) {
                         File.Delete(itemName);
                     } else {
-                        // Bei aktivem Altersfilter nur leere Verzeichnisse entfernen,
-                        // damit noch zu junge Dateien nicht rekursiv mitgelöscht werden.
                         if (!recursive && Directory.EnumerateFileSystemEntries(itemName).Any()) {
                             return false;
                         }
@@ -1082,14 +1083,20 @@ namespace DataClean {
                     if (attempt < maxAttempts) {
                         await Task.Delay(100 * attempt); // Wachsende Wartezeit vor erneutem Versuch
                     }
+                } catch (Exception ex) when (ex is System.Security.SecurityException || ex is ArgumentException || ex is NotSupportedException) {
+                    // Ungewöhnlicher Pfad: als Fehler dieses Elements werten, der Lauf geht weiter.
+                    lastException = ex;
+                    break;
                 }
             }
 
-            // Gesperrte/in Verwendung befindliche Dateien sind erwartbar und werden
-            // ruhiger als "übersprungen" protokolliert, damit echte Fehler nicht untergehen.
-            if (lastException is IOException) {
+            // Gesperrte oder nicht zugängliche Elemente sind beim Bereinigen erwartbar und werden als
+            // "übersprungen" gezählt, damit echte Fehler nicht untergehen. Auch laufende Programme
+            // melden beim Löschen "Zugriff verweigert" statt "in Verwendung".
+            if (lastException is IOException || lastException is UnauthorizedAccessException) {
                 System.Threading.Interlocked.Increment(ref skippedItemCount);
-                LogToDetailTextBox($"Übersprungen (in Verwendung): {itemName}");
+                string reason = lastException is IOException ? "in Verwendung" : "kein Zugriff";
+                LogToDetailTextBox($"Übersprungen ({reason}): {itemName}");
                 RecordActivity(ActivityStatus.Skipped, item);
 
                 // Optional: gesperrte Datei zum Löschen beim nächsten Neustart vormerken.
@@ -1099,7 +1106,7 @@ namespace DataClean {
                 }
             } else {
                 System.Threading.Interlocked.Increment(ref failedItemCount);
-                LogToDetailTextBox($"Löschen von {itemName} fehlgeschlagen: {lastException?.Message}");
+                LogToDetailTextBox($"Löschen von {itemName} fehlgeschlagen: {lastException?.Message ?? "Verschieben in den Papierkorb nicht möglich."}");
                 RecordActivity(ActivityStatus.Failed, item);
             }
             return false;
