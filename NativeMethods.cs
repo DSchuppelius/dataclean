@@ -7,6 +7,21 @@ namespace DataClean {
     /// Entspricht der CA1060-Empfehlung, P/Invoke-Deklarationen zentral zu halten.
     /// </summary>
     internal static class NativeMethods {
+        // Elternprozess ermitteln, um den Start durch die Aufgabenplanung zu erkennen.
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct PROCESS_BASIC_INFORMATION {
+            public IntPtr ExitStatus;
+            public IntPtr PebBaseAddress;
+            public IntPtr AffinityMask;
+            public IntPtr BasePriority;
+            public IntPtr UniqueProcessId;
+            public IntPtr InheritedFromUniqueProcessId;
+        }
+
+        [DllImport("ntdll.dll")]
+        internal static extern int NtQueryInformationProcess(IntPtr processHandle, int informationClass,
+            ref PROCESS_BASIC_INFORMATION information, int informationLength, out int returnLength);
+
         // Papierkorb leeren (shell32.dll)
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
         internal static extern int SHEmptyRecycleBin(IntPtr hwnd, string pszRootPath, uint dwFlags);

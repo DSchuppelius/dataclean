@@ -27,7 +27,10 @@ namespace DataClean
             // Beim Autostart (Argument /autostart) wird grundsätzlich KEINE UAC-Abfrage angezeigt,
             // damit im Hintergrund kein störender Dialog aufpoppt. Erhöhte Rechte müssen in diesem
             // Fall über den Aufrufer bereitgestellt werden (z. B. geplante Aufgabe mit RunLevel Highest).
-            bool isAutostart = IsAutostart(args);
+            //
+            // Auch ein Start durch die Aufgabenplanung gilt als Autostart, damit bestehende Aufgaben
+            // ohne /autostart bei der Anmeldung löschen, statt auf eine Rückfrage zu warten.
+            bool isAutostart = IsAutostart(args) || Services.StartupContext.IsStartedByTaskScheduler();
 
             // Protokollierungsstufe aus den Einstellungen übernehmen: ausführliches
             // Logging (Info) nur bei Bedarf, ansonsten erst ab Warnungen protokollieren.

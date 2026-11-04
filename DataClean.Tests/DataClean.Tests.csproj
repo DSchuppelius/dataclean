@@ -44,6 +44,7 @@
     <Compile Include="FileAgeFilterTests.cs" />
     <Compile Include="ReportBuilderTests.cs" />
     <Compile Include="SpecialFolderResolverTests.cs" />
+    <Compile Include="StartupContextTests.cs" />
     <Compile Include="SizeEstimatorTests.cs" />
     <Compile Include="SecureSettingsTests.cs" />
   </ItemGroup>

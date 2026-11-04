@@ -120,6 +120,7 @@
     <Compile Include="Services\SchedulerService.cs" />
     <Compile Include="Services\SizeEstimator.cs" />
     <Compile Include="Services\SpecialFolderResolver.cs" />
+    <Compile Include="Services\StartupContext.cs" />
     <Compile Include="DeleteForm.Dashboard.cs">
       <DependentUpon>DeleteForm.cs</DependentUpon>
       <SubType>Form</SubType>
