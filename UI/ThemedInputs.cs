@@ -75,11 +75,11 @@ namespace DataClean.UI {
             switch (kind) {
                 case ButtonKind.Primary:
                     fill = AppTheme.Primary; hover = AppTheme.PrimaryHover;
-                    border = AppTheme.Accent; fore = AppTheme.Text;
+                    border = AppTheme.Primary; fore = AppTheme.OnAccent;
                     break;
                 case ButtonKind.Danger:
                     fill = AppTheme.Danger; hover = AppTheme.DangerHover;
-                    border = AppTheme.Error; fore = AppTheme.Text;
+                    border = AppTheme.InputBorder; fore = AppTheme.Error;
                     break;
                 default:
                     fill = AppTheme.Secondary; hover = AppTheme.SecondaryHover;
@@ -88,14 +88,15 @@ namespace DataClean.UI {
             }
 
             if (!Enabled) {
-                border = Color.FromArgb(90, border);
-                fore = Color.FromArgb(120, fore);
+                fill = AppTheme.Secondary;
+                border = Color.FromArgb(120, AppTheme.InputBorder);
+                fore = Color.FromArgb(120, AppTheme.Text);
             }
 
             Color background = Enabled && (hovering || pressed) ? hover : fill;
             bool focusCue = Focused && ShowFocusCues && Enabled;
 
-            using (var path = AppTheme.RoundedPath(new Rectangle(0, 0, Width - 1, Height - 1), 5))
+            using (var path = AppTheme.RoundedPath(new Rectangle(0, 0, Width - 1, Height - 1), 3))
             using (var brush = new SolidBrush(background))
             using (var pen = new Pen(focusCue ? AppTheme.Accent : border, focusCue ? 2f : 1f)) {
                 g.FillPath(brush, path);
@@ -109,8 +110,7 @@ namespace DataClean.UI {
             int x = Math.Max(4, (Width - contentWidth) / 2);
 
             if (icon != IconKind.None) {
-                Icons.Draw(g, icon, new RectangleF(x, (Height - iconSize) / 2f, iconSize, iconSize),
-                    Enabled ? AppTheme.Accent : fore);
+                Icons.Draw(g, icon, new RectangleF(x, (Height - iconSize) / 2f, iconSize, iconSize), fore);
                 x += iconSize + iconGap;
             }
 
@@ -167,7 +167,7 @@ namespace DataClean.UI {
             Color accent = Enabled ? AppTheme.Accent : Color.FromArgb(110, AppTheme.Accent);
             Color border = Checked || (hovering && Enabled) ? accent : AppTheme.InputBorder;
 
-            using (var path = AppTheme.RoundedPath(box, 3))
+            using (var path = AppTheme.RoundedPath(box, 2))
             using (var brush = new SolidBrush(Checked ? accent : AppTheme.SurfaceAlt))
             using (var pen = new Pen(border)) {
                 g.FillPath(brush, path);
@@ -279,7 +279,7 @@ namespace DataClean.UI {
                 float arrowTop = (Height - 16) / 2f;
                 Icons.Draw(g, IconKind.ChevronDown, new RectangleF(Width - arrowWidth + 3, arrowTop, 16f, 16f), arrowColor, 1.6f);
 
-                using (var outline = AppTheme.RoundedPath(new Rectangle(0, 0, Width - 1, Height - 1), 4))
+                using (var outline = AppTheme.RoundedPath(new Rectangle(0, 0, Width - 1, Height - 1), 3))
                 using (var outside = new Region(new Rectangle(0, 0, Width, Height)))
                 using (var parentBrush = new SolidBrush(AppTheme.EffectiveBack(this)))
                 using (var pen = new Pen(Focused ? AppTheme.Accent : AppTheme.InputBorder)) {

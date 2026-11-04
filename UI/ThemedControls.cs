@@ -66,11 +66,9 @@ namespace DataClean.UI {
         }
     }
 
-    /// <summary>Abgerundete Karte mit optionalem Titel und Icon – Ersatz für GroupBoxen.</summary>
+    /// <summary>Bereich mit optionalem Titel und Trennlinie – Ersatz für GroupBoxen.</summary>
     public class CardPanel : Panel, IThemedControl {
-        private const int Radius = 7;
         private string title = string.Empty;
-        private IconKind titleIcon = IconKind.None;
 
         public CardPanel() {
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
@@ -84,25 +82,17 @@ namespace DataClean.UI {
             set { title = value ?? string.Empty; Invalidate(); }
         }
 
-        [DefaultValue(IconKind.None)]
-        public IconKind TitleIcon {
-            get { return titleIcon; }
-            set { titleIcon = value; Invalidate(); }
-        }
-
         public void ApplyTheme() {
             BackColor = AppTheme.Surface;
         }
 
         protected override void OnPaintBackground(PaintEventArgs e) {
-            Graphics g = e.Graphics;
-            g.Clear(AppTheme.EffectiveBack(this));
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            using (var path = AppTheme.RoundedPath(new Rectangle(0, 0, Width - 1, Height - 1), Radius))
-            using (var fill = new SolidBrush(AppTheme.Surface))
-            using (var pen = new Pen(AppTheme.CardBorder)) {
-                g.FillPath(fill, path);
-                g.DrawPath(pen, path);
+            // Bereiche gliedern sich über Abstand und eine Trennlinie, nicht über Rahmen.
+            e.Graphics.Clear(AppTheme.Surface);
+            if (title.Length > 0) {
+                using (var pen = new Pen(AppTheme.Separator)) {
+                    e.Graphics.DrawLine(pen, 20, 0, Width - 17, 0);
+                }
             }
         }
 
@@ -112,40 +102,29 @@ namespace DataClean.UI {
                 return;
             }
 
-            int x = 20;
-            if (titleIcon != IconKind.None) {
-                Icons.Draw(e.Graphics, titleIcon, new RectangleF(19f, 13f, 22f, 22f), AppTheme.Text);
-                x = 48;
-            }
             // Transparente Kind-Labels lassen die Karte verschoben neu zeichnen – die
             // Transformation muss erhalten bleiben, sonst erscheint der Titel in ihnen.
-            TextRenderer.DrawText(e.Graphics, title, AppTheme.CardTitleFont, new Point(x, 13), AppTheme.Text,
-                TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsTranslateTransform | TextFormatFlags.PreserveGraphicsClipping);
+            TextRenderer.DrawText(e.Graphics, title, AppTheme.CardTitleFont, new Point(20, 12), AppTheme.Text,
+                TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding | TextFormatFlags.PreserveGraphicsTranslateTransform | TextFormatFlags.PreserveGraphicsClipping);
         }
     }
 
-    /// <summary>Kennzahl-Kachel (Icon, Beschriftung, großer Wert).</summary>
+    /// <summary>Kennzahl aus Beschriftung und Wert.</summary>
     public class StatCard : Control, IThemedControl {
-        private IconKind icon = IconKind.File;
-        private Tone tone = Tone.Accent;
         private string caption = string.Empty;
         private string value = "0";
+        private bool leadingRule;
 
         public StatCard() {
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
                      ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
         }
 
-        [DefaultValue(IconKind.File)]
-        public IconKind Icon {
-            get { return icon; }
-            set { icon = value; Invalidate(); }
-        }
-
-        [DefaultValue(Tone.Accent)]
-        public Tone Tone {
-            get { return tone; }
-            set { tone = value; Invalidate(); }
+        /// <summary>Trennlinie links, für alle Kennzahlen außer der ersten.</summary>
+        [DefaultValue(false)]
+        public bool LeadingRule {
+            get { return leadingRule; }
+            set { leadingRule = value; Invalidate(); }
         }
 
         [DefaultValue("")]
@@ -173,31 +152,25 @@ namespace DataClean.UI {
         protected override void OnPaint(PaintEventArgs e) {
             Graphics g = e.Graphics;
             g.Clear(AppTheme.EffectiveBack(this));
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            using (var path = AppTheme.RoundedPath(new Rectangle(0, 0, Width - 1, Height - 1), 7))
-            using (var fill = new SolidBrush(AppTheme.Surface))
-            using (var pen = new Pen(AppTheme.CardBorder)) {
-                g.FillPath(fill, path);
-                g.DrawPath(pen, path);
+            int left = 0;
+            if (leadingRule) {
+                using (var pen = new Pen(AppTheme.Separator)) {
+                    g.DrawLine(pen, 0, 2, 0, Height - 3);
+                }
+                left = 16;
             }
 
-            const int iconSize = 32;
-            Icons.DrawGlowing(g, icon, new RectangleF(20f, (Height - iconSize) / 2f, iconSize, iconSize),
-                AppTheme.ToneColor(tone), 1.9f);
-
-            const TextFormatFlags flags = TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine;
-            const int textLeft = 72;
-            int textWidth = Math.Max(0, Width - textLeft - 10);
-            TextRenderer.DrawText(g, caption, AppTheme.StatCaptionFont, new Rectangle(textLeft, 11, textWidth, 20), AppTheme.SubtleText, flags);
-            TextRenderer.DrawText(g, value, AppTheme.StatValueFont, new Rectangle(textLeft, 29, textWidth, 34), AppTheme.Text, flags);
+            const TextFormatFlags flags = TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine;
+            int width = Math.Max(0, Width - left);
+            TextRenderer.DrawText(g, caption, AppTheme.StatCaptionFont, new Rectangle(left, 0, width, 18), AppTheme.SubtleText, flags);
+            TextRenderer.DrawText(g, value, AppTheme.StatValueFont, new Rectangle(left, 17, width, 28), AppTheme.Text, flags);
         }
     }
 
-    /// <summary>Leuchtender Fortschrittsbalken; API kompatibel zur Standard-ProgressBar.</summary>
+    /// <summary>Flacher Fortschrittsbalken; API kompatibel zur Standard-ProgressBar.</summary>
     public class NeonProgressBar : Control, IThemedControl {
         private int maximum = 100;
         private int value;
-        private int glowSize = 4;
         private bool marquee;
         private float marqueePosition;
         private Timer marqueeTimer;
@@ -230,12 +203,9 @@ namespace DataClean.UI {
             }
         }
 
-        /// <summary>Breite des Leuchtsaums; das Control ist um diesen Rand höher als der Balken.</summary>
-        [DefaultValue(4)]
-        public int GlowSize {
-            get { return glowSize; }
-            set { glowSize = Math.Max(0, value); Invalidate(); }
-        }
+        /// <summary>Zurückhaltender Grauton für den untergeordneten Balken.</summary>
+        [DefaultValue(false)]
+        public bool Muted { get; set; }
 
         /// <summary>Laufbalken für Schritte ohne messbaren Fortschritt. Nur vom UI-Thread setzen.</summary>
         [DefaultValue(false)]
@@ -279,21 +249,21 @@ namespace DataClean.UI {
             g.Clear(AppTheme.EffectiveBack(this));
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            var track = new Rectangle(glowSize, glowSize, Width - 2 * glowSize - 1, Height - 2 * glowSize - 1);
+            var track = new Rectangle(0, 0, Width - 1, Height - 1);
             if (track.Width <= 0 || track.Height <= 0) {
                 return;
             }
 
-            int radius = Math.Min(track.Height / 2, 4);
+            int radius = Math.Min(track.Height / 2, 2);
             using (var path = AppTheme.RoundedPath(track, radius))
             using (var brush = new SolidBrush(AppTheme.Track)) {
                 g.FillPath(brush, path);
             }
 
             if (marquee) {
-                int segment = Math.Max(track.Width / 4, 40);
-                int left = track.X - segment + (int)((track.Width + segment) * marqueePosition);
-                Rectangle moving = Rectangle.Intersect(track, new Rectangle(left, track.Y, segment, track.Height));
+                int segment = Math.Max(track.Width / 5, 40);
+                int start = track.X - segment + (int)((track.Width + segment) * marqueePosition);
+                Rectangle moving = Rectangle.Intersect(track, new Rectangle(start, track.Y, segment, track.Height));
                 if (moving.Width > 0) {
                     using (var path = AppTheme.RoundedPath(moving, radius))
                     using (var brush = new SolidBrush(AppTheme.Accent)) {
@@ -309,18 +279,8 @@ namespace DataClean.UI {
             }
 
             var fill = new Rectangle(track.X, track.Y, Math.Max(fillWidth, track.Height), track.Height);
-            for (int i = glowSize; i >= 1; i--) {
-                var halo = Rectangle.Inflate(fill, i, i);
-                int alpha = AppTheme.IsDark ? 44 / (i + 1) : 22 / (i + 1);
-                using (var path = AppTheme.RoundedPath(halo, radius + i))
-                using (var brush = new SolidBrush(Color.FromArgb(alpha, AppTheme.Accent))) {
-                    g.FillPath(brush, path);
-                }
-            }
-
             using (var path = AppTheme.RoundedPath(fill, radius))
-            using (var brush = new LinearGradientBrush(new Rectangle(fill.X, fill.Y - 1, fill.Width, fill.Height + 2),
-                Lighten(AppTheme.Accent, 0.28f), AppTheme.Accent, LinearGradientMode.Vertical)) {
+            using (var brush = new SolidBrush(Muted ? AppTheme.SubtleText : AppTheme.Accent)) {
                 g.FillPath(brush, path);
             }
         }
@@ -333,12 +293,6 @@ namespace DataClean.UI {
             base.Dispose(disposing);
         }
 
-        private static Color Lighten(Color c, float amount) {
-            return Color.FromArgb(
-                c.R + (int)((255 - c.R) * amount),
-                c.G + (int)((255 - c.G) * amount),
-                c.B + (int)((255 - c.B) * amount));
-        }
     }
 
     /// <summary>Einzeilige Hinweiszeile mit Icon.</summary>

@@ -157,16 +157,14 @@ namespace DataClean.UI {
                 e.Graphics.FillRectangle(brush, e.Bounds);
             }
 
-            int last = Columns.Count - 1;
-            bool beforeRightAligned = e.ColumnIndex == last - 1 && Columns[last].TextAlign == HorizontalAlignment.Right;
-            if (e.ColumnIndex < last && !beforeRightAligned) {
-                using (var pen = new Pen(AppTheme.CardBorder)) {
-                    e.Graphics.DrawLine(pen, e.Bounds.Right - 1, e.Bounds.Y, e.Bounds.Right - 1, e.Bounds.Bottom - 1);
-                }
+            using (var pen = new Pen(AppTheme.Separator)) {
+                e.Graphics.DrawLine(pen, e.Bounds.X, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
             }
 
-            var text = new Rectangle(e.Bounds.X + 10, e.Bounds.Y, Math.Max(0, e.Bounds.Width - 20), e.Bounds.Height);
-            TextRenderer.DrawText(e.Graphics, e.Header.Text, Font, text, AppTheme.Text, CellFlags(e.Header.TextAlign, false));
+            int inset = e.ColumnIndex == 0 ? 0 : 10;
+            int gap = e.Header.TextAlign == HorizontalAlignment.Right ? 0 : 10;
+            var text = new Rectangle(e.Bounds.X + inset, e.Bounds.Y, Math.Max(0, e.Bounds.Width - inset - gap), e.Bounds.Height);
+            TextRenderer.DrawText(e.Graphics, e.Header.Text, Font, text, AppTheme.SubtleText, CellFlags(e.Header.TextAlign, false));
         }
 
         protected override void OnDrawItem(DrawListViewItemEventArgs e) {
@@ -187,22 +185,25 @@ namespace DataClean.UI {
             }
 
             Color fore = AppTheme.Text;
-            int left = cell.X + 10;
+            int left = cell.X + (e.ColumnIndex == 0 ? 0 : 10);
 
             if (e.ColumnIndex == statusColumn && e.Item.Tag is StatusKind status && status != StatusKind.None) {
                 fore = ColorFor(status);
-                const int iconSize = 16;
+                const int iconSize = 14;
                 Icons.Draw(e.Graphics, IconFor(status), new RectangleF(left, cell.Y + (cell.Height - iconSize) / 2f, iconSize, iconSize), fore);
-                left += iconSize + 10;
+                left += iconSize + 8;
             }
 
-            var text = new Rectangle(left, cell.Y, Math.Max(0, cell.Right - left - 10), cell.Height);
-            TextRenderer.DrawText(e.Graphics, e.SubItem.Text, Font, text, fore,
+            int gap = Columns[e.ColumnIndex].TextAlign == HorizontalAlignment.Right ? 0 : 10;
+            var text = new Rectangle(left, cell.Y, Math.Max(0, cell.Right - left - gap), cell.Height);
+            // Pfade und Zahlen in Festbreitenschrift: Sie werden verglichen, nicht gelesen.
+            bool technical = e.ColumnIndex == pathColumn || Columns[e.ColumnIndex].TextAlign == HorizontalAlignment.Right;
+            TextRenderer.DrawText(e.Graphics, e.SubItem.Text, technical ? AppTheme.MonoFont : Font, text, fore,
                 CellFlags(Columns[e.ColumnIndex].TextAlign, e.ColumnIndex == pathColumn));
         }
 
         private static TextFormatFlags CellFlags(HorizontalAlignment align, bool isPath) {
-            TextFormatFlags flags = TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter;
+            TextFormatFlags flags = TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter;
             flags |= isPath ? TextFormatFlags.PathEllipsis : TextFormatFlags.EndEllipsis;
             if (align == HorizontalAlignment.Right) {
                 flags |= TextFormatFlags.Right;

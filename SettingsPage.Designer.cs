@@ -78,7 +78,7 @@ namespace DataClean {
             //
             this.lblHeading.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.lblHeading.Font = new System.Drawing.Font("Segoe UI", 20F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblHeading.Font = new System.Drawing.Font("Segoe UI Semibold", 18F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblHeading.Location = new System.Drawing.Point(20, 11);
             this.lblHeading.Name = "lblHeading";
             this.lblHeading.Size = new System.Drawing.Size(767, 44);
@@ -89,7 +89,7 @@ namespace DataClean {
             //
             this.lblSubheading.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.lblSubheading.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblSubheading.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblSubheading.Location = new System.Drawing.Point(22, 54);
             this.lblSubheading.Name = "lblSubheading";
             this.lblSubheading.Size = new System.Drawing.Size(765, 26);
@@ -106,7 +106,7 @@ namespace DataClean {
             this.settingsScroll.Controls.Add(this.settingsLayout);
             this.settingsScroll.Location = new System.Drawing.Point(0, 93);
             this.settingsScroll.Name = "settingsScroll";
-            this.settingsScroll.Padding = new System.Windows.Forms.Padding(24, 0, 7, 0);
+            this.settingsScroll.Padding = new System.Windows.Forms.Padding(4, 0, 0, 0);
             this.settingsScroll.Size = new System.Drawing.Size(794, 476);
             this.settingsScroll.TabIndex = 2;
             //
@@ -122,7 +122,7 @@ namespace DataClean {
             this.settingsLayout.Controls.Add(this.grpSchedule, 0, 3);
             this.settingsLayout.Controls.Add(this.grpGeneral, 1, 3);
             this.settingsLayout.Dock = System.Windows.Forms.DockStyle.Top;
-            this.settingsLayout.Location = new System.Drawing.Point(24, 0);
+            this.settingsLayout.Location = new System.Drawing.Point(4, 0);
             this.settingsLayout.Margin = new System.Windows.Forms.Padding(0);
             this.settingsLayout.Name = "settingsLayout";
             this.settingsLayout.RowCount = 4;
@@ -132,7 +132,7 @@ namespace DataClean {
             this.settingsLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 140F));
             this.settingsLayout.SetColumnSpan(this.grpProfile, 2);
             this.settingsLayout.SetColumnSpan(this.grpCleanup, 2);
-            this.settingsLayout.Size = new System.Drawing.Size(763, 604);
+            this.settingsLayout.Size = new System.Drawing.Size(790, 604);
             this.settingsLayout.TabIndex = 0;
             //
             // grpProfile
@@ -207,7 +207,6 @@ namespace DataClean {
             this.grpCleanup.Size = new System.Drawing.Size(763, 166);
             this.grpCleanup.TabIndex = 1;
             this.grpCleanup.Title = "Bereinigungsoptionen";
-            this.grpCleanup.TitleIcon = DataClean.UI.IconKind.Broom;
             //
             // chkDryRun
             //
@@ -354,7 +353,6 @@ namespace DataClean {
             this.grpReport.Size = new System.Drawing.Size(375, 210);
             this.grpReport.TabIndex = 2;
             this.grpReport.Title = "Report";
-            this.grpReport.TitleIcon = DataClean.UI.IconKind.Document;
             //
             // chkGenerateReport
             //
@@ -368,7 +366,7 @@ namespace DataClean {
             // lblReportPath
             //
             this.lblReportPath.AutoSize = true;
-            this.lblReportPath.Location = new System.Drawing.Point(20, 79);
+            this.lblReportPath.Location = new System.Drawing.Point(17, 79);
             this.lblReportPath.Name = "lblReportPath";
             this.lblReportPath.Size = new System.Drawing.Size(64, 15);
             this.lblReportPath.TabIndex = 1;
@@ -396,7 +394,7 @@ namespace DataClean {
             // lblReportFormat
             //
             this.lblReportFormat.AutoSize = true;
-            this.lblReportFormat.Location = new System.Drawing.Point(20, 112);
+            this.lblReportFormat.Location = new System.Drawing.Point(17, 112);
             this.lblReportFormat.Name = "lblReportFormat";
             this.lblReportFormat.Size = new System.Drawing.Size(48, 15);
             this.lblReportFormat.TabIndex = 4;
@@ -426,7 +424,7 @@ namespace DataClean {
             // lblSmtpUser
             //
             this.lblSmtpUser.AutoSize = true;
-            this.lblSmtpUser.Location = new System.Drawing.Point(20, 145);
+            this.lblSmtpUser.Location = new System.Drawing.Point(17, 145);
             this.lblSmtpUser.Name = "lblSmtpUser";
             this.lblSmtpUser.Size = new System.Drawing.Size(92, 15);
             this.lblSmtpUser.TabIndex = 7;
@@ -444,7 +442,7 @@ namespace DataClean {
             // lblSmtpPassword
             //
             this.lblSmtpPassword.AutoSize = true;
-            this.lblSmtpPassword.Location = new System.Drawing.Point(20, 178);
+            this.lblSmtpPassword.Location = new System.Drawing.Point(17, 178);
             this.lblSmtpPassword.Name = "lblSmtpPassword";
             this.lblSmtpPassword.Size = new System.Drawing.Size(93, 15);
             this.lblSmtpPassword.TabIndex = 9;
@@ -471,7 +469,6 @@ namespace DataClean {
             this.grpExclude.Size = new System.Drawing.Size(376, 210);
             this.grpExclude.TabIndex = 3;
             this.grpExclude.Title = "Ausschlussmuster";
-            this.grpExclude.TitleIcon = DataClean.UI.IconKind.Skip;
             //
             // txtExcludePatterns
             //
@@ -492,7 +489,7 @@ namespace DataClean {
             this.lblExcludeHint.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.lblExcludeHint.AutoEllipsis = true;
-            this.lblExcludeHint.Location = new System.Drawing.Point(20, 177);
+            this.lblExcludeHint.Location = new System.Drawing.Point(17, 177);
             this.lblExcludeHint.Name = "lblExcludeHint";
             this.lblExcludeHint.Size = new System.Drawing.Size(336, 18);
             this.lblExcludeHint.TabIndex = 1;
@@ -513,7 +510,6 @@ namespace DataClean {
             this.grpSchedule.Size = new System.Drawing.Size(375, 140);
             this.grpSchedule.TabIndex = 4;
             this.grpSchedule.Title = "Automatische Ausführung";
-            this.grpSchedule.TitleIcon = DataClean.UI.IconKind.Clock;
             //
             // chkScheduleEnabled
             //
@@ -563,7 +559,6 @@ namespace DataClean {
             this.grpGeneral.Size = new System.Drawing.Size(376, 140);
             this.grpGeneral.TabIndex = 5;
             this.grpGeneral.Title = "Allgemein";
-            this.grpGeneral.TitleIcon = DataClean.UI.IconKind.Gear;
             //
             // chkVerboseLogging
             //
@@ -586,7 +581,7 @@ namespace DataClean {
             // lblTheme
             //
             this.lblTheme.AutoSize = true;
-            this.lblTheme.Location = new System.Drawing.Point(20, 107);
+            this.lblTheme.Location = new System.Drawing.Point(17, 107);
             this.lblTheme.Name = "lblTheme";
             this.lblTheme.Size = new System.Drawing.Size(46, 15);
             this.lblTheme.TabIndex = 2;

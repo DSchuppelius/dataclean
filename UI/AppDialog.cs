@@ -204,7 +204,7 @@ namespace DataClean.UI {
                 case MessageBoxIcon.Information: kind = IconKind.Info; tone = Tone.Accent; break;
                 default: return;
             }
-            Icons.DrawGlowing(e.Graphics, kind, new RectangleF(Gutter, Gutter - 2, IconBoxSize, IconBoxSize), AppTheme.ToneColor(tone), 2f);
+            Icons.Draw(e.Graphics, kind, new RectangleF(Gutter, Gutter, IconBoxSize - 8, IconBoxSize - 8), AppTheme.ToneColor(tone), 1.6f);
         }
     }
 }

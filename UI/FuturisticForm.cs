@@ -20,8 +20,8 @@ namespace DataClean.UI {
         private const int SidebarWidth = 176;
         private const int NavTop = 26;
         private const int NavSpacing = 40;
-        private const int SidebarLogoSize = 104;
-        private const int SidebarLogoMargin = 20;
+        private const int SidebarLogoSize = 72;
+        private const int SidebarLogoMargin = 18;
 
         private const int WM_NCHITTEST = 0x84;
         private const int HTLEFT = 10, HTRIGHT = 11, HTTOP = 12, HTTOPLEFT = 13,
@@ -259,20 +259,19 @@ namespace DataClean.UI {
             sidebarPanel.Resize += (s, e) => sidebarPanel.Invalidate();
         }
 
+        // Das Logo steht als Marke über der Navigation; ohne Logo rückt die Navigation nach oben.
+        private int NavFirstTop {
+            get { return SidebarLogo != null ? SidebarLogoMargin + SidebarLogoSize + SidebarLogoMargin : NavTop; }
+        }
+
         private void PaintSidebarLogo(Graphics g) {
             if (SidebarLogo == null) {
                 return;
             }
 
-            int navBottom = NavTop + navItems.Count * NavSpacing;
-            int top = sidebarPanel.Height - SidebarLogoSize - SidebarLogoMargin;
-            if (top < navBottom + SidebarLogoMargin) {
-                return; // Bei wenig Höhe hat die Navigation Vorrang.
-            }
-
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            g.DrawImage(SidebarLogo, new Rectangle((sidebarPanel.Width - SidebarLogoSize) / 2, top, SidebarLogoSize, SidebarLogoSize));
+            g.DrawImage(SidebarLogo, new Rectangle((sidebarPanel.Width - SidebarLogoSize) / 2, SidebarLogoMargin, SidebarLogoSize, SidebarLogoSize));
         }
 
         /// <summary>Fügt einen Navigationseintrag hinzu. Erst nach dem Laden aufrufen.</summary>
@@ -282,8 +281,8 @@ namespace DataClean.UI {
             }
 
             var item = new NavItem(icon, text) {
-                Location = new Point(7, NavTop + navItems.Count * NavSpacing),
-                Size = new Size(SidebarWidth - 15, NavSpacing - 1)
+                Location = new Point(0, NavFirstTop + navItems.Count * NavSpacing),
+                Size = new Size(SidebarWidth - 1, NavSpacing - 2)
             };
             if (onClick != null) {
                 item.Click += onClick;
@@ -306,16 +305,23 @@ namespace DataClean.UI {
                 g.DrawLine(pen, 0, captionBar.Height - 1, captionBar.Width, captionBar.Height - 1);
             }
 
-            Icons.DrawGlowing(g, IconKind.Broom, new RectangleF(13f, 7f, 21f, 21f), AppTheme.Accent, 1.9f);
+            int brandLeft = 14;
+            // Mit Sidebar steht das Logo direkt darunter; zweimal untereinander wäre es nur Dekoration.
+            if (AppTheme.BrandImage != null && !EnableSidebar) {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.DrawImage(AppTheme.BrandImage, new Rectangle(12, 8, 20, 20));
+                brandLeft = 40;
+            }
 
             const TextFormatFlags flags = TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine;
             int barHeight = captionBar.Height - 1;
             Size brandSize = TextRenderer.MeasureText(g, "DataClean", AppTheme.BrandFont, Size.Empty, flags);
-            TextRenderer.DrawText(g, "DataClean", AppTheme.BrandFont, new Rectangle(44, 0, brandSize.Width, barHeight), AppTheme.Text, flags);
+            TextRenderer.DrawText(g, "DataClean", AppTheme.BrandFont, new Rectangle(brandLeft, 0, brandSize.Width, barHeight), AppTheme.Text, flags);
 
             if (!string.IsNullOrEmpty(captionSubtitle)) {
-                int x = 44 + brandSize.Width + 10;
-                using (var pen = new Pen(AppTheme.CardBorder)) {
+                int x = brandLeft + brandSize.Width + 10;
+                using (var pen = new Pen(AppTheme.Separator)) {
                     g.DrawLine(pen, x, 11, x, barHeight - 11);
                 }
                 int buttonsWidth = 0;
@@ -330,7 +336,7 @@ namespace DataClean.UI {
 
         private void Footer_Paint(object sender, PaintEventArgs e) {
             var footer = (Control)sender;
-            using (var pen = new Pen(AppTheme.CardBorder)) {
+            using (var pen = new Pen(AppTheme.Separator)) {
                 e.Graphics.DrawLine(pen, 0, 0, footer.Width, 0);
             }
         }
@@ -624,40 +630,26 @@ namespace DataClean.UI {
         protected override void OnPaint(PaintEventArgs e) {
             Graphics g = e.Graphics;
             g.Clear(AppTheme.Sidebar);
-            g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            var bounds = new Rectangle(0, 0, Width - 1, Height - 1);
-            if (selected || hovering) {
-                using (var path = AppTheme.RoundedPath(bounds, 6))
-                using (var brush = new SolidBrush(selected ? AppTheme.NavSelected : AppTheme.NavHover)) {
-                    g.FillPath(brush, path);
-                    if (selected) {
-                        using (var pen = new Pen(AppTheme.NavSelectedBorder)) {
-                            g.DrawPath(pen, path);
-                        }
-                    }
+            if (hovering && !selected) {
+                using (var brush = new SolidBrush(AppTheme.NavHover)) {
+                    g.FillRectangle(brush, 0, 0, Width, Height);
                 }
             }
-
             if (selected) {
-                using (var accent = new SolidBrush(AppTheme.Accent))
-                using (var path = AppTheme.RoundedPath(new Rectangle(0, 0, 8, Height - 1), 3))
-                using (var clip = new Region(new Rectangle(0, 0, 3, Height))) {
-                    g.SetClip(clip, CombineMode.Replace);
-                    g.FillPath(accent, path);
-                    g.ResetClip();
+                using (var brush = new SolidBrush(AppTheme.Accent)) {
+                    g.FillRectangle(brush, 0, 8, 2, Height - 16);
                 }
             }
-
             if (Focused && ShowFocusCues) {
-                using (var path = AppTheme.RoundedPath(bounds, 6))
                 using (var pen = new Pen(AppTheme.Accent)) {
-                    g.DrawPath(pen, path);
+                    g.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
                 }
             }
 
-            Icons.Draw(g, icon, new RectangleF(13f, (Height - 21) / 2f, 21f, 21f), AppTheme.Text, 1.6f);
-            TextRenderer.DrawText(g, Text, AppTheme.NavFont, new Rectangle(44, 0, Math.Max(0, Width - 46), Height), AppTheme.Text,
+            Color fore = selected || hovering ? AppTheme.Text : AppTheme.SubtleText;
+            Icons.Draw(g, icon, new RectangleF(18f, (Height - 18) / 2f, 18f, 18f), fore, 1.5f);
+            TextRenderer.DrawText(g, Text, AppTheme.NavFont, new Rectangle(46, 0, Math.Max(0, Width - 48), Height), fore,
                 TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
         }
     }

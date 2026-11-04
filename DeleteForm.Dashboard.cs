@@ -94,14 +94,17 @@ namespace DataClean {
 
             FooterControl = footerPanel;
 
-            // Das Logo steckt bereits als Anwendungssymbol in der Exe; 128 px ist die größte zuverlässig lesbare Stufe.
+            // Das Logo steckt bereits als Anwendungssymbol in der Exe.
             using (var logo = new Icon(Icon, 128, 128)) {
                 SidebarLogo = logo.ToBitmap();
+            }
+            using (var small = new Icon(Icon, 32, 32)) {
+                UI.AppTheme.BrandImage = small.ToBitmap();
             }
             activityFilterCombo.SelectedIndex = 0;
 
             if (dryRun) {
-                statFreed.Caption = "Freigebbar";
+                heroLabel.Text = "0 B freigebbar";
                 statDeleted.Caption = "Würden gelöscht";
                 activityFilterCombo.Items[1] = "Vorschau";
             }
@@ -301,6 +304,7 @@ namespace DataClean {
             directoriesTotal = cleaningDirectories?.Count ?? 0;
 
             headerTitleLabel.Text = RunningTitle;
+            headerTitleLabel.ForeColor = UI.AppTheme.Link;
             progressBar1.Value = 0;
             SetOverallProgress(0d);
             phaseLabel.Text = string.Empty;
@@ -324,6 +328,8 @@ namespace DataClean {
             isPaused = false;
             ClearBusyStep();
             headerTitleLabel.Text = title;
+            bool problem = System.Threading.Volatile.Read(ref failedItemCount) > 0 || title == "Bereinigung fehlgeschlagen" || title == "Vorgang abgebrochen";
+            headerTitleLabel.ForeColor = problem ? themeError : themeSuccess;
             pauseButton.Visible = false;
             cancelButton.Visible = false;
             retryButton.Visible = !IsAdministrator();
@@ -409,9 +415,14 @@ namespace DataClean {
 
             if (busyStatus != null) {
                 label1.Text = BuildBusyText();
+            } else if (currentPhase == 1 && directoriesTotal > 0 && !dryRun && dashboardTimer.Enabled
+                       && (cleanupCts == null || !cleanupCts.IsCancellationRequested)) {
+                label1.Text = $"Verzeichnis {Math.Min(directoriesDone + 1, directoriesTotal)} von {directoriesTotal}";
             }
 
-            statFreed.Value = FormatBytes(System.Threading.Interlocked.Read(ref freedBytes));
+            heroLabel.Text = FormatBytes(System.Threading.Interlocked.Read(ref freedBytes)) + (dryRun ? " freigebbar" : " freigegeben");
+            TimeSpan runtime = DateTime.Now - runStartTime;
+            statRuntime.Value = $"{(int)runtime.TotalMinutes:00}:{runtime.Seconds:00}";
             int deleted = System.Threading.Volatile.Read(ref deletedItemCount);
             int skipped = System.Threading.Volatile.Read(ref skippedItemCount);
             int failed = System.Threading.Volatile.Read(ref failedItemCount);
@@ -440,7 +451,7 @@ namespace DataClean {
                     : $"{failed.ToString("N0", GermanCulture)} Elemente konnten nicht gelöscht werden.");
             }
 
-            infoLine.Tone = failed > 0 ? UI.Tone.Error : UI.Tone.Warning;
+            infoLine.Tone = failed > 0 ? UI.Tone.Error : UI.Tone.Muted;
             infoLine.Text = string.Join(" ", parts);
             infoLine.Visible = true;
         }

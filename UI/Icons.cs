@@ -5,8 +5,6 @@ using System.Drawing.Drawing2D;
 namespace DataClean.UI {
     public enum IconKind {
         None,
-        Broom,
-        File,
         Skip,
         Home,
         Trash,
@@ -27,8 +25,7 @@ namespace DataClean.UI {
         ChevronUp,
         Folder,
         Clock,
-        Dot,
-        Shield
+        Dot
     }
 
     /// <summary>
@@ -62,25 +59,8 @@ namespace DataClean.UI {
             }
         }
 
-        /// <summary>Zeichnet ein Icon mit dezentem Leuchten, wie auf den Kennzahl-Kacheln.</summary>
-        public static void DrawGlowing(Graphics g, IconKind kind, RectangleF bounds, Color color, float stroke = 1.7f) {
-            Draw(g, kind, bounds, Color.FromArgb(22, color), stroke + 4.5f);
-            Draw(g, kind, bounds, Color.FromArgb(38, color), stroke + 2.2f);
-            Draw(g, kind, bounds, color, stroke);
-        }
-
         private static void DrawShape(Graphics g, IconKind kind, Pen pen, Brush brush, Color color) {
             switch (kind) {
-                case IconKind.Broom:
-                    g.DrawLine(pen, 21.5f, 2.5f, 13f, 11f);
-                    Polygon(g, pen, P(10.3f, 8.3f), P(15.7f, 13.7f), P(10.2f, 21.3f), P(2.7f, 13.8f));
-                    g.DrawLine(pen, 5.9f, 17.1f, 9.1f, 13.9f);
-                    g.DrawLine(pen, 8.2f, 19.3f, 10.9f, 16.5f);
-                    break;
-                case IconKind.File:
-                    Polygon(g, pen, P(14f, 3f), P(7f, 3f), P(5f, 5f), P(5f, 19f), P(7f, 21f), P(17f, 21f), P(19f, 19f), P(19f, 8f));
-                    Polyline(g, pen, P(14f, 3f), P(14f, 8f), P(19f, 8f));
-                    break;
                 case IconKind.Skip:
                     Polyline(g, pen, P(5f, 5f), P(12f, 12f), P(5f, 19f));
                     Polyline(g, pen, P(12.5f, 5f), P(19.5f, 12f), P(12.5f, 19f));
@@ -174,10 +154,6 @@ namespace DataClean.UI {
                     break;
                 case IconKind.Dot:
                     g.FillEllipse(brush, 8f, 8f, 8f, 8f);
-                    break;
-                case IconKind.Shield:
-                    Polygon(g, pen, P(12f, 2.8f), P(20f, 5.8f), P(20f, 12f), P(17f, 18f), P(12f, 21.2f), P(7f, 18f), P(4f, 12f), P(4f, 5.8f));
-                    Polyline(g, pen, P(8.5f, 12f), P(11f, 14.5f), P(15.5f, 9.5f));
                     break;
             }
         }

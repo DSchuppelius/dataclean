@@ -32,7 +32,7 @@ namespace DataClean {
             //
             this.lblHeading.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.lblHeading.Font = new System.Drawing.Font("Segoe UI", 20F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblHeading.Font = new System.Drawing.Font("Segoe UI Semibold", 18F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblHeading.Location = new System.Drawing.Point(20, 8);
             this.lblHeading.Name = "lblHeading";
             this.lblHeading.Size = new System.Drawing.Size(716, 44);
@@ -43,7 +43,7 @@ namespace DataClean {
             //
             this.lblSubheading.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.lblSubheading.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblSubheading.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblSubheading.Location = new System.Drawing.Point(22, 50);
             this.lblSubheading.Name = "lblSubheading";
             this.lblSubheading.Size = new System.Drawing.Size(714, 26);
@@ -64,9 +64,6 @@ namespace DataClean {
             //
             // lstHistory
             //
-            this.lstHistory.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-            | System.Windows.Forms.AnchorStyles.Left)
-            | System.Windows.Forms.AnchorStyles.Right)));
             this.lstHistory.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.colStart,
             this.colDuration,
@@ -75,10 +72,11 @@ namespace DataClean {
             this.colSkipped,
             this.colFailed,
             this.colStatus});
-            this.lstHistory.Location = new System.Drawing.Point(12, 12);
+            this.lstHistory.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lstHistory.Location = new System.Drawing.Point(0, 0);
             this.lstHistory.Name = "lstHistory";
             this.lstHistory.ShowItemToolTips = true;
-            this.lstHistory.Size = new System.Drawing.Size(688, 322);
+            this.lstHistory.Size = new System.Drawing.Size(712, 346);
             this.lstHistory.StatusColumn = 6;
             this.lstHistory.TabIndex = 0;
             //

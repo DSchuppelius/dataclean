@@ -1192,9 +1192,11 @@ namespace DataClean {
                     ? "Mit Fehlern abgeschlossen"
                     : (dryRun ? "Vorschau abgeschlossen" : "Bereinigung abgeschlossen"));
                 ShowHealthWarnings();
-                UpdateStatusLabel(label1, (dryRun
-                    ? "Es wurde nichts gelöscht."
-                    : (withErrors ? "Mit Fehlern abgeschlossen. Siehe Details." : "Erfolgreich abgeschlossen.")) + $" {freedText}", withErrors ? themeError : themeSuccess);
+                UpdateStatusLabel(label1, dryRun
+                    ? "Es wurde nichts gelöscht. Das Fenster schließt sich automatisch."
+                    : (withErrors
+                        ? "Einige Elemente konnten nicht gelöscht werden. Das Fenster schließt sich automatisch."
+                        : "Das Fenster schließt sich automatisch."), themeStatusText);
             }));
 
             await Task.Delay(ResultVisibleMs);
