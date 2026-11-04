@@ -2,16 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DataClean {
     public partial class DeleteForm {
         // Löscht Dateien/Ordner eines Pfads über den bestehenden Lösch-Hotpath,
         // sodass Dry-Run, Papierkorb-Option, Altersfilter und Statistik konsistent greifen.
-        private async Task CleanPathAsync(string path, string taskLabel) {
+        private async Task CleanPathAsync(string path, string taskLabel, CancellationToken cancellationToken) {
             if (string.IsNullOrWhiteSpace(path)) {
                 return;
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             var dir = new DirectoryInfo(Environment.ExpandEnvironmentVariables(path));
             if (!dir.Exists) {
@@ -20,14 +23,14 @@ namespace DataClean {
             }
 
             Invoke(new Action(() => {
-                UpdateStatusLabel(label1, $"{taskLabel}...", themeText);
+                UpdateStatusLabel(label1, $"{taskLabel}...", themeStatusText);
                 UpdateStatusLabel(directoryValueLabel, dir.FullName);
             }));
 
-            await ProcessDirectory(dir);
+            await ProcessDirectory(dir, cancellationToken);
         }
 
-        private async Task CleanBrowserCachesAsync() {
+        private async Task CleanBrowserCachesAsync(CancellationToken cancellationToken) {
             performedTasks.Add("Browser-Caches");
 
             string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -53,23 +56,23 @@ namespace DataClean {
             cachePaths.Add(Path.Combine(roaming, @"Opera Software\Opera Stable\Cache"));
 
             foreach (var cachePath in cachePaths) {
-                await CleanPathAsync(cachePath, "Browser-Cache");
+                await CleanPathAsync(cachePath, "Browser-Cache", cancellationToken);
             }
         }
 
-        private async Task CleanMinidumpsAsync() {
+        private async Task CleanMinidumpsAsync(CancellationToken cancellationToken) {
             performedTasks.Add("Absturz-Dumps");
 
             string windir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
 
             // Minidump-Verzeichnis
-            await CleanPathAsync(Path.Combine(windir, "Minidump"), "Minidumps");
+            await CleanPathAsync(Path.Combine(windir, "Minidump"), "Minidumps", cancellationToken);
 
             // Große MEMORY.DMP separat über den Hotpath löschen
             string memoryDump = Path.Combine(windir, "MEMORY.DMP");
             var memFile = new FileInfo(memoryDump);
             if (memFile.Exists) {
-                Invoke(new Action(() => UpdateStatusLabel(label1, "Entferne MEMORY.DMP...", themeText)));
+                Invoke(new Action(() => UpdateStatusLabel(label1, "Entferne MEMORY.DMP...", themeStatusText)));
                 long size = GetFileLength(memFile);
                 if (await TryDeleteItemAsync(memFile)) {
                     System.Threading.Interlocked.Add(ref freedBytes, size);
@@ -79,24 +82,24 @@ namespace DataClean {
 
             // Benutzerbezogene Absturz-Dumps
             string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            await CleanPathAsync(Path.Combine(local, @"CrashDumps"), "Absturz-Dumps");
+            await CleanPathAsync(Path.Combine(local, @"CrashDumps"), "Absturz-Dumps", cancellationToken);
         }
 
-        private async Task CleanPrefetchAsync() {
+        private async Task CleanPrefetchAsync(CancellationToken cancellationToken) {
             performedTasks.Add("Prefetch");
             string windir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-            await CleanPathAsync(Path.Combine(windir, "Prefetch"), "Prefetch");
+            await CleanPathAsync(Path.Combine(windir, "Prefetch"), "Prefetch", cancellationToken);
         }
 
-        private async Task CleanDeliveryOptimizationAsync() {
+        private async Task CleanDeliveryOptimizationAsync(CancellationToken cancellationToken) {
             performedTasks.Add("Delivery Optimization");
             string windir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
             await CleanPathAsync(
                 Path.Combine(windir, @"SoftwareDistribution\DeliveryOptimization"),
-                "Delivery Optimization");
+                "Delivery Optimization", cancellationToken);
         }
 
-        private async Task CleanOldLogsAsync() {
+        private async Task CleanOldLogsAsync(CancellationToken cancellationToken) {
             performedTasks.Add($"Alte Protokolle (> {oldLogAgeDays} Tage)");
 
             string windir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
@@ -115,28 +118,28 @@ namespace DataClean {
                 }
 
                 Invoke(new Action(() => {
-                    UpdateStatusLabel(label1, "Entferne alte Protokolle...", themeText);
+                    UpdateStatusLabel(label1, "Entferne alte Protokolle...", themeStatusText);
                     UpdateStatusLabel(directoryValueLabel, root);
                 }));
 
-                List<FileInfo> oldFiles;
-                try {
-                    oldFiles = new DirectoryInfo(root)
-                        .EnumerateFiles("*", SearchOption.AllDirectories)
-                        .Where(f => {
-                            try {
-                                return extensions.Contains(f.Extension) && f.LastWriteTime < threshold;
-                            } catch {
-                                return false;
-                            }
-                        })
-                        .ToList();
-                } catch (Exception ex) when (ex is UnauthorizedAccessException || ex is IOException) {
-                    LogToDetailTextBox($"Protokollordner {root} nicht vollständig lesbar: {ex.Message}");
-                    continue;
-                }
+                // Streaming-Enumeration: Dateien werden lazy geliefert, sodass nicht alle
+                // FileInfo-Objekte gleichzeitig im Speicher gehalten werden. Unzugängliche
+                // Unterordner werden einzeln übersprungen, statt den gesamten Root abzubrechen.
+                foreach (var file in SafeEnumerateFiles(root)) {
+                    await WaitIfPausedAsync(cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                foreach (var file in oldFiles) {
+                    bool matches;
+                    try {
+                        matches = extensions.Contains(file.Extension) && file.LastWriteTime < threshold;
+                    } catch {
+                        matches = false;
+                    }
+
+                    if (!matches) {
+                        continue;
+                    }
+
                     long size = GetFileLength(file);
                     if (await TryDeleteItemAsync(file)) {
                         System.Threading.Interlocked.Add(ref freedBytes, size);
@@ -154,7 +157,7 @@ namespace DataClean {
                 return;
             }
 
-            Invoke(new Action(() => UpdateStatusLabel(label1, "DISM Komponentenbereinigung läuft (kann dauern)...", themeText)));
+            Invoke(new Action(() => UpdateStatusLabel(label1, "DISM Komponentenbereinigung läuft (kann dauern)...", themeStatusText)));
 
             try {
                 var psi = new System.Diagnostics.ProcessStartInfo("dism.exe",
@@ -189,7 +192,7 @@ namespace DataClean {
                 return;
             }
 
-            Invoke(new Action(() => UpdateStatusLabel(label1, "Leere Papierkorb aller Laufwerke...", themeText)));
+            Invoke(new Action(() => UpdateStatusLabel(label1, "Leere Papierkorb aller Laufwerke...", themeStatusText)));
 
             foreach (var drive in DriveInfo.GetDrives()) {
                 if (!drive.IsReady) {
@@ -197,8 +200,8 @@ namespace DataClean {
                 }
 
                 try {
-                    int result = SHEmptyRecycleBin(IntPtr.Zero, drive.Name,
-                        SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND);
+                    int result = NativeMethods.SHEmptyRecycleBin(IntPtr.Zero, drive.Name,
+                        NativeMethods.SHERB_NOCONFIRMATION | NativeMethods.SHERB_NOPROGRESSUI | NativeMethods.SHERB_NOSOUND);
 
                     // S_OK (0) oder "bereits leer" (unchecked 0x8000FFFF) als Erfolg werten.
                     if (result == 0 || result == unchecked((int)0x8000FFFF)) {
@@ -208,6 +211,48 @@ namespace DataClean {
                     }
                 } catch (Exception ex) {
                     LogToDetailTextBox($"Papierkorb auf {drive.Name} fehlgeschlagen: {ex.Message}");
+                }
+            }
+        }
+
+        // Rekursive, speicherschonende Datei-Enumeration, die unzugängliche Unterordner
+        // einzeln überspringt, anstatt bei der ersten Ausnahme den gesamten Baum abzubrechen.
+        private static IEnumerable<FileInfo> SafeEnumerateFiles(string root) {
+            var pending = new Stack<string>();
+            pending.Push(root);
+
+            while (pending.Count > 0) {
+                string current = pending.Pop();
+
+                IEnumerable<string> subDirs = Enumerable.Empty<string>();
+                try {
+                    subDirs = Directory.EnumerateDirectories(current);
+                } catch (Exception ex) when (ex is UnauthorizedAccessException || ex is IOException) {
+                    // Unterordner nicht lesbar – überspringen.
+                }
+
+                foreach (var sub in subDirs) {
+                    pending.Push(sub);
+                }
+
+                IEnumerable<string> fileNames = Enumerable.Empty<string>();
+                try {
+                    fileNames = Directory.EnumerateFiles(current);
+                } catch (Exception ex) when (ex is UnauthorizedAccessException || ex is IOException) {
+                    continue;
+                }
+
+                foreach (var filePath in fileNames) {
+                    FileInfo info = null;
+                    try {
+                        info = new FileInfo(filePath);
+                    } catch {
+                        info = null;
+                    }
+
+                    if (info != null) {
+                        yield return info;
+                    }
                 }
             }
         }

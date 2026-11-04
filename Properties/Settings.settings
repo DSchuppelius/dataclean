@@ -47,10 +47,13 @@
     <Setting Name="smtpEnableSsl" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">False</Value>
     </Setting>
-    <Setting Name="notifyFromAddress" Type="System.String" Scope="Application">
+    <Setting Name="smtpUser" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
-    <Setting Name="notifyToAddress" Type="System.String" Scope="Application">
+    <Setting Name="smtpPasswordEncrypted" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="notifyFromAddress" Type="System.String" Scope="Application">
       <Value Profile="(Default)" />
     </Setting>
     <Setting Name="dryRun" Type="System.Boolean" Scope="User">
@@ -86,6 +89,24 @@
     <Setting Name="emptyAllRecycleBins" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
+    <Setting Name="confirmBeforeDelete" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="excludePatterns" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="skipIfEnoughFreeSpace" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="verboseLogging" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="schedulePendingDeletes" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="themeOverride" Type="System.String" Scope="User">
+      <Value Profile="(Default)">System</Value>
+    </Setting>
     <Setting Name="generateReport" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
@@ -97,6 +118,9 @@
     </Setting>
     <Setting Name="emailReport" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="notifyToAddress" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">support@schuppelius.org</Value>
     </Setting>
   </Settings>
 </SettingsFile>

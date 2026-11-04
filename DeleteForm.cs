@@ -11,49 +11,12 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace DataClean {
-    public partial class DeleteForm : Form {
-        // Definition der SHEmptyRecycleBin Funktion aus der shell32.dll
-        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-        private static extern int SHEmptyRecycleBin(IntPtr hwnd, string pszRootPath, uint dwFlags);
-
-        // Weist einem Steuerelement ein Windows-Theme zu (z. B. dunkle Scrollbars/ProgressBar im Dark-Mode).
-        [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
-        private static extern int SetWindowTheme(IntPtr hWnd, string pszSubAppName, string pszSubIdList);
-
-        // SHFileOperation zum Verschieben in den Papierkorb
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        private struct SHFILEOPSTRUCT {
-            public IntPtr hwnd;
-            public uint wFunc;
-            public string pFrom;
-            public string pTo;
-            public ushort fFlags;
-            public int fAnyOperationsAborted;
-            public IntPtr hNameMappings;
-            public string lpszProgressTitle;
-        }
-
-        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-        private static extern int SHFileOperation(ref SHFILEOPSTRUCT lpFileOp);
-
-        private const uint FO_DELETE = 0x0003;
-        private const ushort FOF_ALLOWUNDO = 0x0040;
-        private const ushort FOF_NOCONFIRMATION = 0x0010;
-        private const ushort FOF_NOERRORUI = 0x0400;
-        private const ushort FOF_SILENT = 0x0004;
-
-        // Flags für die SHEmptyRecycleBin-Funktion
-        private const uint SHERB_NOCONFIRMATION = 0x00000001;  // Kein Bestätigungsdialog
-        private const uint SHERB_NOPROGRESSUI = 0x00000002;    // Keine Fortschrittsanzeige
-        private const uint SHERB_NOSOUND = 0x00000004;         // Kein Sound nach dem Löschen
-
-
+    public partial class DeleteForm : UI.FuturisticForm {
         private readonly List<DirectoryInfo> protectedDirectories;
         private readonly List<DirectoryInfo> allowedSubdirectories;
 
         private List<DirectoryInfo> cleaningDirectories;
 
-        private bool isErrorTextBoxVisible = false;
         private bool emptyTrash = false;
         private int minFileAgeDays = 0;
         private long freedBytes = 0;
@@ -65,6 +28,11 @@ namespace DataClean {
         private bool severeHealthIssueDetected = false;
         private Task healthCheckTask;
         private bool updateServicesStopped = false;
+        private CancellationTokenSource cleanupCts;
+
+        // Ergebnisse der Systemprüfung werden zwischengespeichert und erst am Ende
+        // ausgegeben, damit sie nicht im Protokoll der gelöschten Dateien untergehen.
+        private List<HealthIssue> pendingHealthIssues;
 
         // Sicherheits- und Erweiterungs-Optionen
         private bool dryRun = false;
@@ -78,10 +46,19 @@ namespace DataClean {
         private bool cleanOldLogs = false;
         private int oldLogAgeDays = 30;
         private bool emptyAllRecycleBins = false;
+        private bool confirmBeforeDelete = true;
         private bool generateReport = false;
         private string reportPath = string.Empty;
         private string reportFormat = "HTML";
         private bool emailReport = false;
+        private bool reportWritten = false;
+        private Services.ExcludeRuleMatcher excludeMatcher;
+        private bool skipIfEnoughFreeSpace = false;
+        private bool schedulePendingDeletes = false;
+
+        // Phasenanzeige: Gesamtzahl der aktivierten Bereinigungs-Phasen und laufender Index.
+        private int totalPhases = 0;
+        private int currentPhase = 0;
 
         // Statistik für Report
         private int deletedItemCount = 0;
@@ -98,243 +75,126 @@ namespace DataClean {
         private readonly System.Text.StringBuilder detailLogBuffer = new System.Text.StringBuilder();
         private readonly object detailLogLock = new object();
 
-        public DeleteForm() {
+        // Wird beim unbeaufsichtigten Autostart (geplante Aufgabe) gesetzt und überspringt
+        // interaktive Rückfragen wie die Größen-Vorschau-Bestätigung.
+        private readonly bool unattended;
+
+        public DeleteForm() : this(false) {
+        }
+
+        public DeleteForm(bool unattended) {
+            // Unbeaufsichtigt ist der Lauf entweder bei explizitem Autostart-Flag oder
+            // wenn keine interaktive Benutzersitzung vorhanden ist (z. B. geplante Aufgabe
+            // mit "Ausführen, auch wenn der Benutzer nicht angemeldet ist"). So müssen
+            // bestehende Aufgaben nicht angepasst werden.
+            this.unattended = unattended || !Environment.UserInteractive;
+
             protectedDirectories = new List<DirectoryInfo>();
             allowedSubdirectories = new List<DirectoryInfo>();
 
             LoadDirectoriesFromConfig(Properties.Settings.Default.protectedDirectories, protectedDirectories);
             LoadDirectoriesFromConfig(Properties.Settings.Default.allowedSubdirectories, allowedSubdirectories);
 
-            this.emptyTrash = Properties.Settings.Default.emptyTrash;
-            this.minFileAgeDays = Properties.Settings.Default.minFileAgeDays;
-            this.removeWindowsOld = Properties.Settings.Default.removeWindowsOld;
-            this.flushDnsCache = Properties.Settings.Default.flushDnsCache;
-            this.clearEventLogs = Properties.Settings.Default.clearEventLogs;
-            this.healthCheckEnabled = Properties.Settings.Default.healthCheckEnabled;
-            this.minFreeDiskPercent = Properties.Settings.Default.minFreeDiskPercent;
+            var options = CleanupOptions.FromSettings();
 
-            this.dryRun = Properties.Settings.Default.dryRun;
-            this.createRestorePoint = Properties.Settings.Default.createRestorePoint;
-            this.deleteToRecycleBin = Properties.Settings.Default.deleteToRecycleBin;
-            this.cleanBrowserCaches = Properties.Settings.Default.cleanBrowserCaches;
-            this.dismComponentCleanup = Properties.Settings.Default.dismComponentCleanup;
-            this.cleanMinidumps = Properties.Settings.Default.cleanMinidumps;
-            this.cleanPrefetch = Properties.Settings.Default.cleanPrefetch;
-            this.cleanDeliveryOptimization = Properties.Settings.Default.cleanDeliveryOptimization;
-            this.cleanOldLogs = Properties.Settings.Default.cleanOldLogs;
-            this.oldLogAgeDays = Properties.Settings.Default.oldLogAgeDays;
-            this.emptyAllRecycleBins = Properties.Settings.Default.emptyAllRecycleBins;
-            this.generateReport = Properties.Settings.Default.generateReport;
-            this.reportPath = Properties.Settings.Default.reportPath;
-            this.reportFormat = Properties.Settings.Default.reportFormat;
-            this.emailReport = Properties.Settings.Default.emailReport;
+            this.emptyTrash = options.EmptyTrash;
+            this.minFileAgeDays = options.MinFileAgeDays;
+            this.removeWindowsOld = options.RemoveWindowsOld;
+            this.flushDnsCache = options.FlushDnsCache;
+            this.clearEventLogs = options.ClearEventLogs;
+            this.healthCheckEnabled = options.HealthCheckEnabled;
+            this.minFreeDiskPercent = options.MinFreeDiskPercent;
+
+            this.dryRun = options.DryRun;
+            this.createRestorePoint = options.CreateRestorePoint;
+            this.deleteToRecycleBin = options.DeleteToRecycleBin;
+            this.cleanBrowserCaches = options.CleanBrowserCaches;
+            this.dismComponentCleanup = options.DismComponentCleanup;
+            this.cleanMinidumps = options.CleanMinidumps;
+            this.cleanPrefetch = options.CleanPrefetch;
+            this.cleanDeliveryOptimization = options.CleanDeliveryOptimization;
+            this.cleanOldLogs = options.CleanOldLogs;
+            this.oldLogAgeDays = options.OldLogAgeDays;
+            this.emptyAllRecycleBins = options.EmptyAllRecycleBins;
+            this.confirmBeforeDelete = options.ConfirmBeforeDelete;
+            this.generateReport = options.GenerateReport;
+            this.reportPath = options.ReportPath;
+            this.reportFormat = options.ReportFormat;
+            this.emailReport = options.EmailReport;
+
+            this.excludeMatcher = new Services.ExcludeRuleMatcher(
+                (options.ExcludePatterns ?? string.Empty)
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries));
+            this.skipIfEnoughFreeSpace = options.SkipIfEnoughFreeSpace;
+            this.schedulePendingDeletes = options.SchedulePendingDeletes;
+
+            this.EnableSidebar = true;
+            this.EnableMaximizeButton = true;
+            this.AllowResize = true;
+            this.ResizeMinimum = new Size(880, 640);
+            this.CaptionSubtitle = "Temporäre Dateien bereinigen";
 
             InitializeComponent();
 
-            ApplyUserTheme();
+            InitializeDashboard();
 
-            StyleRoundedButtons();
-
-            // Wert-Label direkt hinter die Beschriftung "Vorgang:" setzen,
-            // damit der Abstand unabhängig von Schriftbreite/DPI konstant bleibt.
-            label1.Left = label5.Right + 2;
-            directoryValueLabel.Left = label2.Right + 2;
-
-            // Detailbereich ist anfangs ausgeblendet – Form entsprechend zusammenklappen.
-            this.Height -= detailTextBox.Height + 10;
+            SetupTrayMenu();
 
             this.FormClosing += DeleteForm_FormClosing;
+            this.Resize += DeleteForm_Resize;
         }
 
-        // Farbpalette, die sich an den Windows-Benutzereinstellungen (Hell-/Dunkel-Modus) orientiert.
-        private Color themeBackground;
-        private Color themeSurface;
-        private Color themeText;
-        private Color themeSubtleText;
-        private Color themeSeparator;
-        private Color themePrimary;
-        private Color themePrimaryHover;
-        private Color themePrimaryText;
-        private Color themeSecondary;
-        private Color themeSecondaryHover;
-        private Color themeSecondaryText;
-        private Color themeLink;
-        private Color themeLinkActive;
-        private Color themeError;
-        private Color themeSuccess;
-        private static bool IsWindowsLightTheme() {
-            try {
-                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
-                    @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")) {
-                    if (key?.GetValue("AppsUseLightTheme") is int value) {
-                        return value != 0;
-                    }
-                }
-            } catch {
-                // Bei Fehlern (z. B. Registry nicht lesbar) hellen Modus annehmen.
-            }
-            return true;
+        // Richtet das Kontextmenü des Infobereich-Symbols ein und aktiviert
+        // "In den Infobereich minimieren" per Doppelklick/Menü.
+        private void SetupTrayMenu() {
+            var menu = new ContextMenuStrip { Renderer = new UI.ThemedMenuRenderer() };
+
+            var openItem = new ToolStripMenuItem("Fenster anzeigen");
+            openItem.Click += (s, e) => RestoreFromTray();
+
+            var settingsItem = new ToolStripMenuItem("Einstellungen...");
+            settingsItem.Click += (s, e) => {
+                RestoreFromTray();
+                ShowPage(Page.Settings);
+            };
+
+            var exitItem = new ToolStripMenuItem("Beenden");
+            exitItem.Click += (s, e) => ExitApplication();
+
+            menu.Items.Add(openItem);
+            menu.Items.Add(settingsItem);
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add(exitItem);
+
+            notifyIcon1.ContextMenuStrip = menu;
+            notifyIcon1.DoubleClick += (s, e) => RestoreFromTray();
         }
 
-        private void ApplyUserTheme() {
-            bool isLight = IsWindowsLightTheme();
-            if (isLight) {
-                themeBackground = Color.White;
-                themeSurface = Color.FromArgb(249, 249, 249);
-                themeText = Color.FromArgb(32, 32, 32);
-                themeSubtleText = Color.FromArgb(96, 96, 96);
-                themeSeparator = Color.FromArgb(229, 229, 229);
-                themePrimary = Color.FromArgb(51, 51, 51);
-                themePrimaryHover = Color.FromArgb(77, 77, 77);
-                themePrimaryText = Color.White;
-                themeSecondary = Color.FromArgb(243, 243, 243);
-                themeSecondaryHover = Color.FromArgb(229, 229, 229);
-                themeSecondaryText = Color.FromArgb(51, 51, 51);
-                themeLink = Color.FromArgb(89, 89, 89);
-                themeLinkActive = Color.FromArgb(51, 51, 51);
-                themeError = Color.FromArgb(197, 48, 38);
-                themeSuccess = Color.FromArgb(31, 136, 61);
-            } else {
-                themeBackground = Color.FromArgb(32, 32, 32);
-                themeSurface = Color.FromArgb(43, 43, 43);
-                themeText = Color.FromArgb(240, 240, 240);
-                themeSubtleText = Color.FromArgb(170, 170, 170);
-                themeSeparator = Color.FromArgb(64, 64, 64);
-                themePrimary = Color.FromArgb(80, 80, 80);
-                themePrimaryHover = Color.FromArgb(104, 104, 104);
-                themePrimaryText = Color.White;
-                themeSecondary = Color.FromArgb(56, 56, 56);
-                themeSecondaryHover = Color.FromArgb(72, 72, 72);
-                themeSecondaryText = Color.FromArgb(240, 240, 240);
-                themeLink = Color.FromArgb(180, 180, 180);
-                themeLinkActive = Color.FromArgb(240, 240, 240);
-                themeError = Color.FromArgb(255, 123, 114);
-                themeSuccess = Color.FromArgb(63, 185, 80);
-            }
-
-            this.BackColor = themeBackground;
-
-            headerPanel.BackColor = themeBackground;
-            headerTitleLabel.ForeColor = themeText;
-            headerSeparatorPanel.BackColor = themeSeparator;
-            separatorPanel.BackColor = themeSeparator;
-            footerPanel.BackColor = themeSurface;
-
-            label1.ForeColor = themeText;
-            label2.ForeColor = themeSubtleText;
-            directoryValueLabel.ForeColor = themeText;
-            label5.ForeColor = themeSubtleText;
-            label3.ForeColor = themeSubtleText;
-            label4.ForeColor = themeSubtleText;
-
-            linkLabel1.LinkColor = themeLink;
-            linkLabel1.ActiveLinkColor = themeLinkActive;
-            linkLabel2.LinkColor = themeLink;
-            linkLabel2.ActiveLinkColor = themeLinkActive;
-
-            detailTextBox.BackColor = themeSurface;
-            detailTextBox.ForeColor = themeText;
-
-            ApplyNativeControlTheme(isLight);
+        private void RestoreFromTray() {
+            this.Show();
+            this.WindowState = FormWindowState.Normal;
+            this.ShowInTaskbar = true;
+            this.Activate();
         }
 
-        // Weist nativen Win32-Controls (ProgressBar, TextBox-Scrollbars) im Dunkelmodus
-        // das passende Theme zu, da diese BackColor ignorieren.
-        private void ApplyNativeControlTheme(bool isLight) {
-            // TextBox: dunkle bzw. helle Scrollbars über das Explorer-Theme.
-            string scrollTheme = isLight ? "Explorer" : "DarkMode_Explorer";
-            ApplyWindowTheme(detailTextBox, scrollTheme, null);
-
-            // ProgressBars: im Dunkelmodus das visuelle Theme entfernen, damit
-            // BackColor/ForeColor überhaupt wirken; im Hellmodus Standard-Theme beibehalten.
-            progressBar1.BackColor = themeSurface;
-            progressBar2.BackColor = themeSurface;
-            progressBar1.ForeColor = isLight ? Color.FromArgb(0, 120, 215) : Color.FromArgb(76, 194, 255);
-            progressBar2.ForeColor = progressBar1.ForeColor;
-
-            if (isLight) {
-                ApplyWindowTheme(progressBar1, "Explorer", null);
-                ApplyWindowTheme(progressBar2, "Explorer", null);
-            } else {
-                ApplyWindowTheme(progressBar1, "", "");
-                ApplyWindowTheme(progressBar2, "", "");
-            }
-        }
-
-        private void ApplyWindowTheme(Control control, string appName, string idList) {
-            if (control == null) {
+        private void DeleteForm_Resize(object sender, EventArgs e) {
+            // Beim Minimieren in den Infobereich ausweichen statt in die Taskleiste.
+            if (this.WindowState == FormWindowState.Minimized) {
+                this.ShowInTaskbar = false;
+                notifyIcon1.Visible = true;
+                this.Hide();
                 return;
             }
-            if (!control.IsHandleCreated) {
-                control.HandleCreated += (s, e) => SetWindowTheme(((Control)s).Handle, appName, idList);
-            } else {
-                SetWindowTheme(control.Handle, appName, idList);
-            }
-        }
 
-        private void StyleRoundedButtons() {
-            ApplyRoundedButton(toggleButton,
-                themePrimary,
-                themePrimaryHover,
-                themePrimaryText);
-
-            ApplyRoundedButton(retryButton,
-                themeSecondary,
-                themeSecondaryHover,
-                themeSecondaryText);
-        }
-
-        private void ApplyRoundedButton(Button button, Color normal, Color hover, Color foreColor) {
-            button.FlatStyle = FlatStyle.Flat;
-            button.FlatAppearance.BorderSize = 0;
-            button.FlatAppearance.MouseOverBackColor = hover;
-            button.FlatAppearance.MouseDownBackColor = hover;
-            button.ForeColor = foreColor;
-            button.BackColor = normal;
-            button.UseVisualStyleBackColor = false;
-            button.Cursor = Cursors.Hand;
-
-            // Kantengeglättetes Zeichnen statt harter Region-Beschneidung,
-            // damit die abgerundeten Ecken sauber (nicht ausgefranst) wirken.
-            button.Region = null;
-            button.Paint += (s, e) => PaintRoundedButton(button, e, normal, hover, foreColor);
-            button.MouseEnter += (s, e) => button.Invalidate();
-            button.MouseLeave += (s, e) => button.Invalidate();
-            button.EnabledChanged += (s, e) => button.Invalidate();
-        }
-
-        private void PaintRoundedButton(Button button, PaintEventArgs e, Color normal, Color hover, Color foreColor) {
-            const int radius = 8;
-            var g = e.Graphics;
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            g.Clear(button.Parent != null ? button.Parent.BackColor : BackColor);
-
-            bool isHover = button.ClientRectangle.Contains(button.PointToClient(Cursor.Position));
-            Color fill = (button.Enabled && isHover) ? hover : normal;
-            Color text = button.Enabled ? foreColor : Color.FromArgb(160, 160, 160);
-
-            var rect = new Rectangle(0, 0, button.Width - 1, button.Height - 1);
-            using (var path = CreateRoundedPath(rect, radius))
-            using (var brush = new SolidBrush(fill)) {
-                g.FillPath(brush, path);
-            }
-
-            TextRenderer.DrawText(g, button.Text, button.Font, button.ClientRectangle, text,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-        }
-
-        private System.Drawing.Drawing2D.GraphicsPath CreateRoundedPath(Rectangle bounds, int radius) {
-            int d = radius * 2;
-            var path = new System.Drawing.Drawing2D.GraphicsPath();
-            path.AddArc(bounds.X, bounds.Y, d, d, 180, 90);
-            path.AddArc(bounds.Right - d, bounds.Y, d, d, 270, 90);
-            path.AddArc(bounds.Right - d, bounds.Bottom - d, d, d, 0, 90);
-            path.AddArc(bounds.X, bounds.Bottom - d, d, d, 90, 90);
-            path.CloseFigure();
-            return path;
+            ApplyWindowLayout();
         }
 
         private void DeleteForm_FormClosing(object sender, FormClosingEventArgs e) {
+            if (e.CloseReason == CloseReason.UserClosing && !settingsPage.ConfirmLeave()) {
+                e.Cancel = true;
+                return;
+            }
+
             // Sicherstellen, dass die Windows-Update-Dienste beim Beenden wieder laufen,
             // auch wenn die Anwendung während der Bereinigung geschlossen wird.
             if (updateServicesStopped) {
@@ -344,11 +204,49 @@ namespace DataClean {
 
         private void DeleteForm_Shown(object sender, EventArgs e) {
             LoadConfiguration();
-            Task.Run(() => CleanDirectories());
+            StartCleanup();
 
             if (healthCheckEnabled) {
                 healthCheckTask = Task.Run(() => RunHealthCheck());
             }
+        }
+
+        private void StartCleanup() {
+            cleanupCts?.Dispose();
+            cleanupCts = new CancellationTokenSource();
+            var token = cleanupCts.Token;
+            PrepareDashboardForRun();
+            Task.Run(() => CleanDirectories(token));
+        }
+
+        /// <summary>
+        /// Ermittelt die geschätzte Gesamtgröße der zu bereinigenden Verzeichnisse und
+        /// lässt den Benutzer den Löschvorgang bestätigen. Gibt false zurück, wenn der
+        /// Benutzer abbricht.
+        /// </summary>
+        private async Task<bool> ConfirmSizePreview(CancellationToken cancellationToken) {
+            Invoke(new Action(() => UpdateStatusLabel(label1, "Berechne Größe der zu bereinigenden Daten...", themeStatusText)));
+
+            long totalBytes = await Task.Run(
+                () => Services.SizeEstimator.EstimateSize(cleaningDirectories, cancellationToken),
+                cancellationToken);
+
+            string readable = Services.ByteFormatter.Format(totalBytes);
+            LogToDetailTextBox($"Geschätzte Größe der zu bereinigenden Verzeichnisse: {readable}");
+
+            bool confirmed = false;
+            Invoke(new Action(() => {
+                var result = UI.AppDialog.Show(
+                    this,
+                    $"Es werden ca. {readable} in {cleaningDirectories.Count} Verzeichnis(sen) bereinigt.{Environment.NewLine}{Environment.NewLine}Möchten Sie fortfahren?",
+                    "Bereinigung bestätigen",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question,
+                    MessageBoxDefaultButton.Button1);
+                confirmed = result == DialogResult.Yes;
+            }));
+
+            return confirmed;
         }
 
         private void LoadConfiguration() {
@@ -358,7 +256,7 @@ namespace DataClean {
 
             string directoriesConfig = Properties.Settings.Default.cleanDirectories;
             if (string.IsNullOrEmpty(directoriesConfig)) {
-                MessageBox.Show("Keine Verzeichnisse in der Konfigurationsdatei gefunden.", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                UI.AppDialog.Show(this, "Keine Verzeichnisse in der Konfigurationsdatei gefunden.", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -388,82 +286,24 @@ namespace DataClean {
         }
 
         private string ResolveSpecialFolders(string path) {
-            switch (path) {
-                case "%TEMP%":
-                    return Path.GetTempPath();
-                case "%INTERNET_CACHE%":
-                    return Environment.GetFolderPath(Environment.SpecialFolder.InternetCache);
-                case "%HISTORY%":
-                    return Environment.GetFolderPath(Environment.SpecialFolder.History);
-                case "%DOWNLOADS%":
-                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-                case "%DESKTOP%":
-                    return Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                case "%DOCUMENTS%":
-                    return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                case "%MUSIC%":
-                    return Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
-                case "%PICTURES%":
-                    return Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-                case "%VIDEOS%":
-                    return Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
-                case "%WINDOWS%":
-                    return Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-                case "%SYSTEM%":
-                    return Environment.GetFolderPath(Environment.SpecialFolder.System);
-                case "%PROGRAM_FILES%":
-                    return Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-                case "%PROGRAM_FILES_X86%":
-                    return Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-                case "%USERPROFILE%":
-                    return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                case "%WINDOWS_TEMP%":
-                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp");
-                case "%PREFETCH%":
-                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Prefetch");
-                case "%SOFTWARE_DISTRIBUTION%":
-                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SoftwareDistribution", "Download");
-                case "%CRASH_DUMPS%":
-                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CrashDumps");
-                case "%THUMBNAIL_CACHE%":
-                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "Explorer");
-                case "%EDGE_CACHE%":
-                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Edge", "User Data", "Default", "Cache");
-                case "%CHROME_CACHE%":
-                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Google", "Chrome", "User Data", "Default", "Cache");
-                case "%FIREFOX_CACHE%":
-                    return ResolveFirefoxCache();
-                default:
-                    return path;
-            }
+            return Services.SpecialFolderResolver.Resolve(path);
         }
 
         private string ResolveFirefoxCache() {
-            string firefoxProfiles = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mozilla", "Firefox", "Profiles");
-            if (!Directory.Exists(firefoxProfiles)) {
-                return firefoxProfiles;
-            }
-
-            // Standardprofil (*.default-release) bevorzugen, sonst erstes Profil mit Cache verwenden.
-            var profile = Directory.EnumerateDirectories(firefoxProfiles)
-                .FirstOrDefault(p => p.EndsWith("default-release", StringComparison.OrdinalIgnoreCase))
-                ?? Directory.EnumerateDirectories(firefoxProfiles).FirstOrDefault();
-
-            return profile != null ? Path.Combine(profile, "cache2") : firefoxProfiles;
+            return Services.SpecialFolderResolver.ResolveFirefoxCache();
         }
 
         private bool IsProtectedDirectory(string directory) {
-            if (allowedSubdirectories.Any(allowedDir => directory.StartsWith(allowedDir.FullName, StringComparison.OrdinalIgnoreCase))) {
-                return false; // Verzeichnis ist erlaubt, also nicht geschützt
-            }
-
-            return protectedDirectories.Any(protectedDir => directory.StartsWith(protectedDir.FullName, StringComparison.OrdinalIgnoreCase));
+            return Services.DirectoryProtectionService.IsProtected(
+                directory,
+                protectedDirectories.Select(d => d.FullName),
+                allowedSubdirectories.Select(d => d.FullName));
         }
 
         private void EmptyRecycleBin() {
             try {
                 // Leert den Papierkorb ohne Bestätigung, ohne UI und ohne Sound
-                int result = SHEmptyRecycleBin(IntPtr.Zero, null, SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND);
+                int result = NativeMethods.SHEmptyRecycleBin(IntPtr.Zero, null, NativeMethods.SHERB_NOCONFIRMATION | NativeMethods.SHERB_NOPROGRESSUI | NativeMethods.SHERB_NOSOUND);
 
                 switch ((uint)result) {
                     case 0: // S_OK
@@ -488,16 +328,10 @@ namespace DataClean {
 
         private void RunHealthCheck() {
             try {
+                // Nur berechnen und zwischenspeichern – die Ausgabe erfolgt gebündelt
+                // am Ende in CompleteProcess, nach den gelöschten Dateien.
                 var issues = HealthCheck.Run(minFreeDiskPercent);
-
-                if (issues.Count == 0) {
-                    LogToDetailTextBox("Systemprüfung: keine Auffälligkeiten.");
-                    return;
-                }
-
-                foreach (var issue in issues) {
-                    LogToDetailTextBox($"Systemprüfung: {issue}");
-                }
+                pendingHealthIssues = issues;
 
                 var critical = issues.Where(i => i.Severity == HealthSeverity.Critical).ToList();
                 if (critical.Count > 0) {
@@ -506,6 +340,28 @@ namespace DataClean {
                 }
             } catch (Exception ex) {
                 LogError(ex);
+            }
+        }
+
+        // Gibt die zwischengespeicherten Ergebnisse der Systemprüfung aus.
+        // Wird am Ende aufgerufen, damit sie klar getrennt unter den gelöschten Dateien stehen.
+        private void FlushHealthCheckResults() {
+            if (!healthCheckEnabled) {
+                return;
+            }
+
+            var issues = pendingHealthIssues;
+
+            LogToDetailTextBox(string.Empty);
+            LogToDetailTextBox("===== Systemprüfung =====");
+
+            if (issues == null || issues.Count == 0) {
+                LogToDetailTextBox("Systemprüfung: keine Auffälligkeiten.");
+                return;
+            }
+
+            foreach (var issue in issues) {
+                LogToDetailTextBox($"Systemprüfung: {issue}");
             }
         }
 
@@ -527,12 +383,16 @@ namespace DataClean {
         }
 
         private void ShowTrayNotification(string title, string body) {
+            ShowTrayNotification(title, body, ToolTipIcon.Error);
+        }
+
+        private void ShowTrayNotification(string title, string body, ToolTipIcon icon) {
             try {
                 Invoke(new Action(() => {
                     notifyIcon1.Visible = true;
                     notifyIcon1.BalloonTipTitle = title;
                     notifyIcon1.BalloonTipText = body;
-                    notifyIcon1.BalloonTipIcon = ToolTipIcon.Error;
+                    notifyIcon1.BalloonTipIcon = icon;
                     notifyIcon1.ShowBalloonTip(15000);
                 }));
             } catch (Exception ex) {
@@ -558,6 +418,13 @@ namespace DataClean {
                 using (var client = new SmtpClient(settings.smtpHost, settings.smtpPort) {
                     EnableSsl = settings.smtpEnableSsl
                 }) {
+                    // Falls ein SMTP-Benutzer hinterlegt ist, das per DPAPI verschlüsselte
+                    // Passwort entschlüsseln und zur Authentifizierung verwenden.
+                    if (!string.IsNullOrWhiteSpace(settings.smtpUser)) {
+                        string password = Services.SecureSettings.Decrypt(settings.smtpPasswordEncrypted);
+                        client.Credentials = new System.Net.NetworkCredential(settings.smtpUser, password);
+                    }
+
                     client.Send(message);
                     LogToDetailTextBox($"E-Mail-Benachrichtigung an {settings.notifyToAddress} gesendet.");
                 }
@@ -570,7 +437,7 @@ namespace DataClean {
             try {
                 Invoke(new Action(() => {
                     UpdateStatusLabel(directoryValueLabel, "Windows.old");
-                    UpdateStatusLabel(label1, "Entferne Windows.old...", themeText);
+                    UpdateStatusLabel(label1, "Entferne Windows.old...", themeStatusText);
                 }));
 
                 string systemDrive = Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.Windows));
@@ -596,7 +463,7 @@ namespace DataClean {
 
         private void FlushDnsCache() {
             try {
-                Invoke(new Action(() => UpdateStatusLabel(label1, "Leere DNS-Cache...", themeText)));
+                Invoke(new Action(() => UpdateStatusLabel(label1, "Leere DNS-Cache...", themeStatusText)));
 
                 var startInfo = new System.Diagnostics.ProcessStartInfo("ipconfig", "/flushdns") {
                     CreateNoWindow = true,
@@ -618,7 +485,7 @@ namespace DataClean {
 
         private void ClearEventLogs() {
             try {
-                Invoke(new Action(() => UpdateStatusLabel(label1, "Leere Windows-Event-Logs...", themeText)));
+                Invoke(new Action(() => UpdateStatusLabel(label1, "Leere Windows-Event-Logs...", themeStatusText)));
 
                 foreach (var logName in System.Diagnostics.EventLog.GetEventLogs().Select(l => l.Log).Distinct()) {
                     try {
@@ -643,7 +510,7 @@ namespace DataClean {
             foreach (var service in services) {
                 try {
                     Invoke(new Action(() => UpdateStatusLabel(label1,
-                        $"Dienst {service} wird {(start ? "gestartet" : "gestoppt")}...", themeText)));
+                        $"Dienst {service} wird {(start ? "gestartet" : "gestoppt")}...", themeStatusText)));
 
                     var psi = new System.Diagnostics.ProcessStartInfo("net", $"{action} {service}") {
                         CreateNoWindow = true,
@@ -671,7 +538,7 @@ namespace DataClean {
 
         private async Task CreateRestorePointAsync() {
             try {
-                Invoke(new Action(() => UpdateStatusLabel(label1, "Erstelle Systemwiederherstellungspunkt...", themeText)));
+                Invoke(new Action(() => UpdateStatusLabel(label1, "Erstelle Systemwiederherstellungspunkt...", themeStatusText)));
                 performedTasks.Add("Systemwiederherstellungspunkt");
 
                 // Checkpoint-Computer legt einen Wiederherstellungspunkt an. Erfordert aktivierte
@@ -704,13 +571,68 @@ namespace DataClean {
             }
         }
 
-        private async Task CleanDirectories() {
+        // Prüft, ob auf dem Systemlaufwerk mehr als minFreeDiskPercent freier Speicher vorhanden ist.
+        private bool HasEnoughFreeSpace() {
+            if (minFreeDiskPercent <= 0) {
+                return false;
+            }
+
             try {
-                Invoke(new Action(() => progressBar2.Maximum = cleaningDirectories.Count));
+                string systemRoot = Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.System));
+                var drive = new DriveInfo(systemRoot);
+                if (!drive.IsReady || drive.TotalSize <= 0) {
+                    return false;
+                }
+
+                double freePercent = (double)drive.TotalFreeSpace / drive.TotalSize * 100.0;
+                return freePercent >= minFreeDiskPercent;
+            } catch (Exception ex) {
+                Services.Logger.Warn($"Schwellenwert-Prüfung fehlgeschlagen: {ex.Message}", "DeleteForm");
+                return false;
+            }
+        }
+
+        private async Task CleanDirectories(CancellationToken cancellationToken) {
+            try {
+                totalPhases = GetEnabledPhaseNames().Count;
+                currentPhase = 0;
+
+                // Schwellenwert-Trigger: Wenn aktiviert und auf dem Systemlaufwerk noch
+                // genügend freier Speicher vorhanden ist, wird der Lauf übersprungen.
+                if (skipIfEnoughFreeSpace && HasEnoughFreeSpace()) {
+                    LogToDetailTextBox($"=== Bereinigung übersprungen – genügend freier Speicher (> {minFreeDiskPercent} %) ===");
+                    Services.Logger.Info($"Lauf übersprungen – freier Speicher über Schwellenwert ({minFreeDiskPercent} %).", "DeleteForm");
+                    Invoke(new Action(() => {
+                        ShowFinishedState("Bereinigung übersprungen");
+                        UpdateStatusLabel(label1, $"Genügend freier Speicher (> {minFreeDiskPercent} %).", themeSuccess);
+                    }));
+                    if (unattended) {
+                        Invoke(new Action(() => {
+                            notifyIcon1.Visible = false;
+                            Application.Exit();
+                        }));
+                    }
+                    return;
+                }
 
                 if (dryRun) {
-                    Invoke(new Action(() => UpdateStatusLabel(label1, "Vorschau-Modus – es wird nichts gelöscht.", themeText)));
+                    Invoke(new Action(() => UpdateStatusLabel(label1, "Vorschau-Modus – es wird nichts gelöscht.", themeStatusText)));
                     LogToDetailTextBox("=== VORSCHAU-MODUS (Dry-Run) – es werden keine Daten gelöscht ===");
+                } else {
+                    // Vor dem eigentlichen Löschen eine Größen-Vorschau anzeigen und
+                    // vom Benutzer bestätigen lassen. Die Rückfrage entfällt im
+                    // unbeaufsichtigten Modus oder wenn sie per Einstellung
+                    // (confirmBeforeDelete) deaktiviert wurde.
+                    if (!unattended && confirmBeforeDelete && !await ConfirmSizePreview(cancellationToken)) {
+                        LogToDetailTextBox("=== Bereinigung durch Benutzer abgebrochen (Vorschau) ===");
+                        // Der Benutzer hat das Löschen abgelehnt, bevor etwas passiert ist –
+                        // die Anwendung kann direkt geschlossen werden.
+                        Invoke(new Action(() => {
+                            notifyIcon1.Visible = false;
+                            Application.Exit();
+                        }));
+                        return;
+                    }
                 }
 
                 // Optional einen Systemwiederherstellungspunkt anlegen, bevor größere
@@ -729,10 +651,22 @@ namespace DataClean {
                 }
 
                 try {
-                    foreach (var scanDir in cleaningDirectories) {
-                        Invoke(new Action(() => UpdateStatusLabel(directoryValueLabel, $"{scanDir}")));
-                        await ProcessDirectory(scanDir);
-                        Invoke(new Action(() => progressBar2.PerformStep()));
+                    await BeginPhaseAsync("Verzeichnisse bereinigen", cancellationToken);
+                    for (int i = 0; i < cleaningDirectories.Count; i++) {
+                        var scanDir = cleaningDirectories[i];
+                        int row = i;
+                        await WaitIfPausedAsync(cancellationToken);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        Invoke(new Action(() => {
+                            UpdateStatusLabel(directoryValueLabel, $"{scanDir}");
+                            SetRowStatus(directoriesList, row, UI.StatusKind.Running, "Läuft");
+                        }));
+                        await ProcessDirectory(scanDir, cancellationToken);
+                        Invoke(new Action(() => {
+                            directoriesDone++;
+                            progressBar1.Value = 0;
+                            SetRowStatus(directoriesList, row, UI.StatusKind.Success, "Fertig");
+                        }));
                     }
                 } finally {
                     if (needsUpdateServices) {
@@ -741,62 +675,121 @@ namespace DataClean {
                 }
 
                 if (emptyTrash) {
+                    await BeginPhaseAsync("Papierkorb leeren", cancellationToken);
                     Invoke(new Action(() => {
                         UpdateStatusLabel(directoryValueLabel, $"Papierkorb");
-                        UpdateStatusLabel(label1, "Leere Papierkorb....", themeText);
+                        UpdateStatusLabel(label1, "Leere Papierkorb....", themeStatusText);
                         EmptyRecycleBin();
-                        UpdateStatusLabel(label1, "Leere Papierkorb... beendet", themeText);
+                        UpdateStatusLabel(label1, "Leere Papierkorb... beendet", themeStatusText);
                     }));
                 }
 
                 if (removeWindowsOld) {
+                    await BeginPhaseAsync("Windows.old entfernen", cancellationToken);
                     await RemoveWindowsOldAsync();
                 }
 
                 if (cleanBrowserCaches) {
-                    await CleanBrowserCachesAsync();
+                    await BeginPhaseAsync("Browser-Caches", cancellationToken);
+                    await CleanBrowserCachesAsync(cancellationToken);
                 }
 
                 if (cleanMinidumps) {
-                    await CleanMinidumpsAsync();
+                    await BeginPhaseAsync("Absturz-Dumps", cancellationToken);
+                    await CleanMinidumpsAsync(cancellationToken);
                 }
 
                 if (cleanPrefetch) {
-                    await CleanPrefetchAsync();
+                    await BeginPhaseAsync("Prefetch", cancellationToken);
+                    await CleanPrefetchAsync(cancellationToken);
                 }
 
                 if (cleanDeliveryOptimization) {
-                    await CleanDeliveryOptimizationAsync();
+                    await BeginPhaseAsync("Delivery Optimization", cancellationToken);
+                    await CleanDeliveryOptimizationAsync(cancellationToken);
                 }
 
                 if (cleanOldLogs) {
-                    await CleanOldLogsAsync();
+                    await BeginPhaseAsync("Alte Protokolle", cancellationToken);
+                    await CleanOldLogsAsync(cancellationToken);
                 }
 
                 if (emptyAllRecycleBins) {
+                    await BeginPhaseAsync("Papierkorb aller Laufwerke", cancellationToken);
                     EmptyAllRecycleBins();
                 }
 
                 if (dismComponentCleanup && !dryRun) {
+                    await BeginPhaseAsync("DISM Komponentenbereinigung", cancellationToken);
                     await RunDismComponentCleanupAsync();
                 }
 
                 if (flushDnsCache) {
+                    await BeginPhaseAsync("DNS-Cache leeren", cancellationToken);
                     FlushDnsCache();
                 }
 
                 if (clearEventLogs) {
+                    await BeginPhaseAsync("Event-Logs leeren", cancellationToken);
                     ClearEventLogs();
                 }
 
-                Thread.Sleep(2500);
-                CompleteProcess();
+                await CompleteProcess();
+            } catch (OperationCanceledException) {
+                // Auch bei Abbruch die bis dahin gesammelte Statistik als Report sichern.
+                if (generateReport) {
+                    WriteReport();
+                }
+                CompleteProcessCanceled();
             } catch (Exception ex) {
+                // Bei unerwartetem Fehler Report noch schreiben, damit die Statistik nicht verloren geht.
+                if (generateReport) {
+                    WriteReport();
+                }
                 LogError(ex);
+                FlushUiUpdates(force: true);
+                Invoke(new Action(() => {
+                    FinishRunTables(canceled: true);
+                    ShowFinishedState("Bereinigung fehlgeschlagen");
+                    UpdateStatusLabel(label1, $"Fehler: {ex.Message}", themeError);
+                }));
             }
         }
 
-        private async Task ProcessDirectory(DirectoryInfo dir) {
+        // Liefert die aktivierten Phasen in Ausführungsreihenfolge (Fortschritt und Phasenliste).
+        private List<string> GetEnabledPhaseNames() {
+            var phases = new List<string> { "Verzeichnisse bereinigen" };
+            if (emptyTrash) phases.Add("Papierkorb leeren");
+            if (removeWindowsOld) phases.Add("Windows.old entfernen");
+            if (cleanBrowserCaches) phases.Add("Browser-Caches");
+            if (cleanMinidumps) phases.Add("Absturz-Dumps");
+            if (cleanPrefetch) phases.Add("Prefetch");
+            if (cleanDeliveryOptimization) phases.Add("Delivery Optimization");
+            if (cleanOldLogs) phases.Add("Alte Protokolle");
+            if (emptyAllRecycleBins) phases.Add("Papierkorb aller Laufwerke");
+            if (dismComponentCleanup && !dryRun) phases.Add("DISM Komponentenbereinigung");
+            if (flushDnsCache) phases.Add("DNS-Cache leeren");
+            if (clearEventLogs) phases.Add("Event-Logs leeren");
+            return phases;
+        }
+
+        // Startet die nächste Phase: wartet eine Pause ab, beachtet einen Abbruch und
+        // aktualisiert Phasenanzeige und Phasenliste.
+        private async Task BeginPhaseAsync(string description, CancellationToken cancellationToken) {
+            await WaitIfPausedAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            currentPhase++;
+            int phase = currentPhase;
+            int total = totalPhases;
+            Action update = () => {
+                phaseLabel.Text = $"Phase {phase}/{total}: {description}";
+                MarkPhaseRunning(phase - 1);
+            };
+            if (InvokeRequired) BeginInvoke(update); else update();
+        }
+
+        private async Task ProcessDirectory(DirectoryInfo dir, CancellationToken cancellationToken) {
             try {
                 var files = dir.EnumerateFiles("*", SearchOption.AllDirectories).ToList();
 
@@ -806,12 +799,17 @@ namespace DataClean {
                     .OrderByDescending(d => d.FullName.Count(c => c == Path.DirectorySeparatorChar))
                     .ToList();
 
-                Invoke(new Action(() => { progressBar1.Maximum = files.Count + directories.Count; }));
+                Invoke(new Action(() => {
+                    progressBar1.Value = 0;
+                    progressBar1.Maximum = files.Count + directories.Count;
+                }));
 
                 // Dateien parallel löschen (unabhängig voneinander), Verzeichnisse danach
                 // sequenziell in Tiefensortierung (Reihenfolge ist hier relevant).
-                await DeleteFilesParallelAsync(files);
-                await DeleteItemsAsync(directories);
+                await DeleteFilesParallelAsync(files, cancellationToken);
+                await DeleteItemsAsync(directories, cancellationToken);
+            } catch (OperationCanceledException) {
+                throw;
             } catch (UnauthorizedAccessException ex) {
                 LogToDetailTextBox($"Zugriff verweigert auf {dir.FullName}: {ex.Message}");
             } catch (Exception ex) {
@@ -819,12 +817,16 @@ namespace DataClean {
             }
         }
 
-        private async Task DeleteItemsAsync<T>(IEnumerable<T> items) where T : FileSystemInfo {
+        private async Task DeleteItemsAsync<T>(IEnumerable<T> items, CancellationToken cancellationToken) where T : FileSystemInfo {
             foreach (var item in items) {
+                await WaitIfPausedAsync(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 string itemName = item.FullName;
 
                 if (ShouldSkipDueToAge(item)) {
+                    System.Threading.Interlocked.Increment(ref skippedItemCount);
                     LogToDetailTextBox($"Übersprungen (zu jung): {itemName}");
+                    RecordActivity(ActivityStatus.Skipped, item);
                     QueueProgressStep();
                     continue;
                 }
@@ -838,16 +840,17 @@ namespace DataClean {
 
                 if (isDeleted) {
                     freedBytes += itemSize;
+                    System.Threading.Interlocked.Increment(ref deletedItemCount);
                     LogToDetailTextBox($"Gelöscht: {itemName}");
                 }
 
-                QueueProgressStep(itemName);
+                QueueProgressStep();
             }
 
-            FlushUiUpdates(itemName: null, force: true);
+            FlushUiUpdates(force: true);
         }
 
-        private async Task DeleteFilesParallelAsync(IReadOnlyList<FileInfo> files) {
+        private async Task DeleteFilesParallelAsync(IReadOnlyList<FileInfo> files, CancellationToken cancellationToken) {
             if (files.Count == 0) {
                 return;
             }
@@ -856,7 +859,7 @@ namespace DataClean {
             // nicht zu überlasten. Bei sehr wenigen Dateien lohnt Parallelität nicht.
             int maxParallel = Math.Min(Environment.ProcessorCount * 2, 8);
             if (files.Count < 2 || maxParallel <= 1) {
-                await DeleteItemsAsync(files);
+                await DeleteItemsAsync(files, cancellationToken);
                 return;
             }
 
@@ -864,28 +867,34 @@ namespace DataClean {
                 var tasks = new List<Task>(files.Count);
 
                 foreach (var file in files) {
-                    await throttler.WaitAsync();
+                    await WaitIfPausedAsync(cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await throttler.WaitAsync(cancellationToken);
 
                     tasks.Add(Task.Run(async () => {
                         try {
-                            await DeleteSingleFileAsync(file);
+                            await DeleteSingleFileAsync(file, cancellationToken);
                         } finally {
                             throttler.Release();
                         }
-                    }));
+                    }, cancellationToken));
                 }
 
                 await Task.WhenAll(tasks);
             }
 
-            FlushUiUpdates(itemName: null, force: true);
+            FlushUiUpdates(force: true);
         }
 
-        private async Task DeleteSingleFileAsync(FileInfo file) {
+        private async Task DeleteSingleFileAsync(FileInfo file, CancellationToken cancellationToken) {
             string itemName = file.FullName;
 
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (ShouldSkipDueToAge(file)) {
+                System.Threading.Interlocked.Increment(ref skippedItemCount);
                 LogToDetailTextBox($"Übersprungen (zu jung): {itemName}");
+                RecordActivity(ActivityStatus.Skipped, file);
                 QueueProgressStep();
                 return;
             }
@@ -896,34 +905,33 @@ namespace DataClean {
 
             if (isDeleted) {
                 System.Threading.Interlocked.Add(ref freedBytes, itemSize);
+                System.Threading.Interlocked.Increment(ref deletedItemCount);
                 LogToDetailTextBox($"Gelöscht: {itemName}");
             }
 
-            QueueProgressStep(itemName);
+            QueueProgressStep();
         }
 
-        private void QueueProgressStep(string statusText = null) {
-            int steps = System.Threading.Interlocked.Increment(ref pendingProgressSteps);
+        private void QueueProgressStep() {
+            System.Threading.Interlocked.Increment(ref pendingProgressSteps);
 
             // UI nur periodisch aktualisieren, um blockierende Invoke-Aufrufe pro Element zu vermeiden.
             if (uiThrottle.ElapsedMilliseconds >= UiUpdateIntervalMs) {
-                FlushUiUpdates(statusText, force: false);
+                FlushUiUpdates(force: false);
             }
         }
 
-        private void FlushUiUpdates(string itemName, bool force) {
+        private void FlushUiUpdates(bool force) {
             int steps = System.Threading.Interlocked.Exchange(ref pendingProgressSteps, 0);
             uiThrottle.Restart();
 
-            if (steps <= 0 && itemName == null && !force) {
+            if (steps <= 0 && !force) {
                 FlushDetailLog(force);
                 return;
             }
 
             Action update = () => {
-                int target = Math.Min(progressBar1.Value + steps, progressBar1.Maximum);
-                if (target > progressBar1.Value) progressBar1.Value = target;
-                if (itemName != null) label1.Text = itemName;
+                progressBar1.Value += steps;
             };
 
             if (force) {
@@ -944,8 +952,7 @@ namespace DataClean {
             try {
                 // Kein Refresh nötig: Die FileInfo stammt frisch aus der Enumeration,
                 // die Zeitstempel sind bereits geladen.
-                DateTime threshold = DateTime.Now.AddDays(-minFileAgeDays);
-                return file.LastWriteTime > threshold && file.LastAccessTime > threshold;
+                return Services.FileAgeFilter.ShouldSkip(file.LastWriteTime, file.LastAccessTime, minFileAgeDays, DateTime.Now);
             } catch {
                 return false;
             }
@@ -979,11 +986,28 @@ namespace DataClean {
         }
 
         private async Task<bool> TryDeleteItemAsync(FileSystemInfo item) {
+            bool deleted = await TryDeleteItemCoreAsync(item);
+            if (deleted) {
+                RecordActivity(ActivityStatus.Deleted, item);
+            }
+            return deleted;
+        }
+
+        private async Task<bool> TryDeleteItemCoreAsync(FileSystemInfo item) {
             const int maxAttempts = 3;
             string itemName = item.FullName;
             bool isFile = item is FileInfo;
             bool recursive = minFileAgeDays <= 0;
             Exception lastException = null;
+
+            // Benutzerdefinierte Ausschlussmuster respektieren: passende Elemente werden
+            // nicht gelöscht, sondern als übersprungen gezählt.
+            if (excludeMatcher != null && excludeMatcher.IsExcluded(itemName)) {
+                System.Threading.Interlocked.Increment(ref skippedItemCount);
+                LogToDetailTextBox($"Durch Ausschlussregel übersprungen: {itemName}");
+                RecordActivity(ActivityStatus.Skipped, item);
+                return false;
+            }
 
             // Dry-Run: nichts löschen, nur protokollieren und als "gelöscht" werten,
             // damit Größen-/Zählstatistik die Vorschau korrekt darstellt.
@@ -1036,8 +1060,23 @@ namespace DataClean {
                 }
             }
 
-            UpdateStatusLabel(label1, $"{itemName}", themeError);
-            LogToDetailTextBox($"Löschen von {itemName} fehlgeschlagen: {lastException?.Message}");
+            // Gesperrte/in Verwendung befindliche Dateien sind erwartbar und werden
+            // ruhiger als "übersprungen" protokolliert, damit echte Fehler nicht untergehen.
+            if (lastException is IOException) {
+                System.Threading.Interlocked.Increment(ref skippedItemCount);
+                LogToDetailTextBox($"Übersprungen (in Verwendung): {itemName}");
+                RecordActivity(ActivityStatus.Skipped, item);
+
+                // Optional: gesperrte Datei zum Löschen beim nächsten Neustart vormerken.
+                if (schedulePendingDeletes && isFile && !dryRun
+                    && Services.PendingDeleteService.ScheduleDeleteOnReboot(itemName)) {
+                    LogToDetailTextBox($"Zum Löschen beim nächsten Neustart vorgemerkt: {itemName}");
+                }
+            } else {
+                System.Threading.Interlocked.Increment(ref failedItemCount);
+                LogToDetailTextBox($"Löschen von {itemName} fehlgeschlagen: {lastException?.Message}");
+                RecordActivity(ActivityStatus.Failed, item);
+            }
             return false;
         }
 
@@ -1056,14 +1095,14 @@ namespace DataClean {
 
         private bool DeleteToRecycleBin(string path) {
             try {
-                var fileOp = new SHFILEOPSTRUCT {
-                    wFunc = FO_DELETE,
+                var fileOp = new NativeMethods.SHFILEOPSTRUCT {
+                    wFunc = NativeMethods.FO_DELETE,
                     // pFrom muss mit einem zusätzlichen Nullzeichen terminiert sein (doppelt null).
                     pFrom = path + '\0' + '\0',
-                    fFlags = (ushort)(FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT)
+                    fFlags = (ushort)(NativeMethods.FOF_ALLOWUNDO | NativeMethods.FOF_NOCONFIRMATION | NativeMethods.FOF_NOERRORUI | NativeMethods.FOF_SILENT)
                 };
 
-                int result = SHFileOperation(ref fileOp);
+                int result = NativeMethods.SHFileOperation(ref fileOp);
                 return result == 0 && fileOp.fAnyOperationsAborted == 0;
             } catch (Exception ex) {
                 LogToDetailTextBox($"Papierkorb-Verschiebung fehlgeschlagen für {path}: {ex.Message}");
@@ -1071,67 +1110,195 @@ namespace DataClean {
             }
         }
 
-        private void CompleteProcess() {
+        private async Task CompleteProcess() {
+            // Sicherstellen, dass der parallele Health-Check abgeschlossen ist, und
+            // dessen Ergebnisse jetzt – nach den gelöschten Dateien – gebündelt ausgeben.
+            try {
+                healthCheckTask?.Wait(TimeSpan.FromSeconds(30));
+            } catch (Exception ex) {
+                Services.Logger.Warn($"HealthCheck-Wait: {ex.Message}", "DeleteForm");
+            }
+
+            FlushHealthCheckResults();
+
+            // Kompakte Zusammenfassung ans Ende stellen, damit das Ergebnis auf einen Blick erkennbar ist.
+            WriteSummary();
+
+            RecordRunHistory(canceled: false);
+
             string freedText = $"Freigegebener Speicher: {FormatBytes(freedBytes)}";
-            LogToDetailTextBox(freedText);
 
-            // Verbleibende gepufferte Log-Zeilen synchron in die TextBox schreiben,
-            // bevor deren Inhalt auf Fehler geprüft wird.
-            FlushUiUpdates(itemName: null, force: true);
+            // Abschluss-Benachrichtigung im Infobereich (falls aktiviert) – besonders
+            // nützlich im minimierten Zustand oder beim unbeaufsichtigten Lauf.
+            if (Properties.Settings.Default.notifyByTray) {
+                bool withErr = failedItemCount > 0;
+                ShowTrayNotification(
+                    withErr ? "DataClean – mit Fehlern abgeschlossen" : "DataClean – Bereinigung abgeschlossen",
+                    $"{deletedItemCount} Elemente entfernt. {freedText}.",
+                    withErr ? ToolTipIcon.Warning : ToolTipIcon.Info);
+            }
 
+            // Optionalen Report (CSV/HTML) auf die Platte schreiben.
+            if (generateReport) {
+                WriteReport();
+            }
+
+            // Verbleibende gepufferte Log-Zeilen synchron in die TextBox schreiben.
+            FlushUiUpdates(force: true);
+
+            bool withErrors = failedItemCount > 0;
             Invoke(new Action(() => {
                 progressBar1.Value = progressBar1.Maximum = 1;
-                progressBar2.Value = progressBar2.Maximum = 1;
-                retryButton.Enabled = !IsAdministrator();
-                bool withErrors = detailTextBox.Text
-                    .Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries)
-                    .Any(line => line.StartsWith("Löschen von", StringComparison.Ordinal) && line.Contains("fehlgeschlagen"));
+                overallFraction = 1d;
+                SetOverallProgress(1d);
+                phaseLabel.Text = string.Empty;
+                FinishRunTables(canceled: false);
+                ShowFinishedState(withErrors
+                    ? "Mit Fehlern abgeschlossen"
+                    : (dryRun ? "Vorschau abgeschlossen" : "Bereinigung abgeschlossen"));
                 UpdateStatusLabel(label1, (withErrors
                     ? "Mit Fehlern abgeschlossen. Siehe Details."
                     : "Erfolgreich abgeschlossen.") + $" {freedText}", withErrors ? themeError : themeSuccess);
             }));
 
-            Thread.Sleep(2500);  // Simulate delay
-
-            // Sicherstellen, dass der parallele Health-Check abgeschlossen ist,
-            // bevor über das Schließen entschieden wird.
-            try {
-                healthCheckTask?.Wait(TimeSpan.FromSeconds(30));
-            } catch (Exception ex) {
-                System.Diagnostics.Debug.WriteLine($"HealthCheck-Wait: {ex.Message}");
-            }
+            await Task.Delay(2500);
 
             if (severeHealthIssueDetected) {
                 Invoke(new Action(() => {
                     UpdateStatusLabel(label1, "Schwerwiegender Systemfehler erkannt – Programm bleibt geöffnet. Siehe Details.", themeError);
-                    if (!isErrorTextBoxVisible) {
-                        isErrorTextBoxVisible = true;
-                        this.Height += detailTextBox.Height + 10;
+                    if (currentPage != Page.Settings) {
+                        ShowPage(Page.Log);
                     }
-                    detailTextBox.Visible = true;
-                    toggleButton.Text = "Beenden";
-                    retryButton.Enabled = !IsAdministrator();
                 }));
                 return; // Kein automatisches Schließen bei schwerem Fehler.
             }
 
-            if (toggleButton.Text == "Details verbergen")
-                Invoke(new Action(() => toggleButton.Text = "Beenden"));
-            else {
-                Thread.Sleep(5000);  // Simulate delay
+            // Automatisch schließen, sofern der Benutzer nicht mit Details, Protokoll
+            // oder Einstellungen arbeitet.
+            if (!StayOpenAfterRun) {
+                await Task.Delay(5000);
+            }
+            if (!StayOpenAfterRun) {
                 Application.Exit();
             }
         }
 
-        private static string FormatBytes(long bytes) {
-            string[] units = { "B", "KB", "MB", "GB", "TB" };
-            double size = bytes;
-            int unit = 0;
-            while (size >= 1024 && unit < units.Length - 1) {
-                size /= 1024;
-                unit++;
+        // Abschlusslogik nach einem vom Benutzer ausgelösten Abbruch.
+        private void CompleteProcessCanceled() {
+            Services.Logger.Warn("Bereinigung wurde vom Benutzer abgebrochen.", "DeleteForm");
+
+            RecordRunHistory(canceled: true);
+
+            LogToDetailTextBox("=== Vorgang abgebrochen \u2013 nicht alle Bereiche wurden bereinigt ===");
+            FlushUiUpdates(force: true);
+
+            Invoke(new Action(() => {
+                FinishRunTables(canceled: true);
+                ShowFinishedState("Vorgang abgebrochen");
+                UpdateStatusLabel(label1, $"Nicht alle Bereiche wurden bereinigt. Freigegebener Speicher: {FormatBytes(freedBytes)}", themeError);
+            }));
+        }
+
+        // Schreibt die Lauf-Historie (einmalig pro Lauf) in den persistenten Speicher.
+        private bool runHistoryRecorded = false;
+        private void RecordRunHistory(bool canceled) {
+            if (runHistoryRecorded) {
+                return;
             }
-            return $"{size:0.##} {units[unit]}";
+            runHistoryRecorded = true;
+
+            try {
+                Services.RunHistoryStore.Append(new Services.RunHistoryEntry {
+                    StartTime = runStartTime,
+                    EndTime = DateTime.Now,
+                    FreedBytes = freedBytes,
+                    DeletedItems = deletedItemCount,
+                    SkippedItems = skippedItemCount,
+                    FailedItems = failedItemCount,
+                    DryRun = dryRun,
+                    Unattended = unattended,
+                    Canceled = canceled,
+                    Tasks = string.Join(", ", performedTasks)
+                });
+            } catch (Exception ex) {
+                Services.Logger.Error(ex, "DeleteForm.RecordRunHistory");
+            }
+        }
+
+        // Erstellt die Abschluss-Zusammenfassung mit Statistik.
+        private void WriteSummary() {
+            TimeSpan duration = DateTime.Now - runStartTime;
+
+            LogToDetailTextBox(string.Empty);
+            LogToDetailTextBox("===== Zusammenfassung =====");
+            if (dryRun) {
+                LogToDetailTextBox("Vorschau-Modus (Dry-Run): Es wurden keine Daten gelöscht.");
+            }
+            LogToDetailTextBox($"Gelöscht: {deletedItemCount} Elemente / {FormatBytes(freedBytes)}");
+            LogToDetailTextBox($"Übersprungen: {skippedItemCount}  ·  Fehler: {failedItemCount}");
+            LogToDetailTextBox($"Dauer: {duration:hh\\:mm\\:ss}");
+            if (performedTasks.Count > 0) {
+                LogToDetailTextBox($"Zusatzaufgaben: {string.Join(", ", performedTasks)}");
+            }
+            if (!IsAdministrator()) {
+                LogToDetailTextBox("Hinweis: Ohne Administratorrechte wurden einige Systemverzeichnisse übersprungen. Über \"Erweitertes Löschen\" mit Adminrechten neu starten.");
+            }
+        }
+
+        // Schreibt einen Report (CSV oder HTML) in das konfigurierte Verzeichnis.
+        private void WriteReport() {
+            // Report nur einmal schreiben, auch wenn er aus mehreren Pfaden (Erfolg, Abbruch, Fehler) aufgerufen wird.
+            if (reportWritten) {
+                return;
+            }
+            reportWritten = true;
+
+            try {
+                string targetDir = string.IsNullOrWhiteSpace(reportPath)
+                    ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DataClean", "Reports")
+                    : reportPath;
+                Directory.CreateDirectory(targetDir);
+
+                bool isHtml = string.Equals(reportFormat, "HTML", StringComparison.OrdinalIgnoreCase);
+                string fileName = Services.ReportBuilder.BuildFileName(runStartTime, isHtml);
+                string fullPath = Path.Combine(targetDir, fileName);
+
+                TimeSpan duration = DateTime.Now - runStartTime;
+                string tasks = performedTasks.Count > 0 ? string.Join(", ", performedTasks) : "-";
+
+                var reportData = new Services.ReportData {
+                    RunStartTime = runStartTime,
+                    MachineName = Environment.MachineName,
+                    DryRun = dryRun,
+                    DeletedItemCount = deletedItemCount,
+                    FreedBytes = freedBytes,
+                    SkippedItemCount = skippedItemCount,
+                    FailedItemCount = failedItemCount,
+                    Duration = duration,
+                    Tasks = tasks
+                };
+
+                string content = isHtml
+                    ? Services.ReportBuilder.BuildHtml(reportData)
+                    : Services.ReportBuilder.BuildCsv(reportData);
+                File.WriteAllText(fullPath, content, System.Text.Encoding.UTF8);
+
+                LogToDetailTextBox($"Report gespeichert: {fullPath}");
+
+                if (emailReport) {
+                    SendEmailNotification($"DataClean Report – {Environment.MachineName}",
+                        $"Gelöscht: {deletedItemCount} Elemente / {FormatBytes(freedBytes)}" + Environment.NewLine +
+                        $"Übersprungen: {skippedItemCount}, Fehler: {failedItemCount}" + Environment.NewLine +
+                        $"Dauer: {duration:hh\\:mm\\:ss}" + Environment.NewLine +
+                        $"Report: {fullPath}");
+                }
+            } catch (Exception ex) {
+                LogToDetailTextBox($"Report konnte nicht erstellt werden: {ex.Message}");
+            }
+        }
+
+        private static string FormatBytes(long bytes) {
+            return Services.ByteFormatter.Format(bytes);
         }
 
         private void UpdateStatusLabel(Label label, string text, Color? color = null) {
@@ -1165,6 +1332,7 @@ namespace DataClean {
         }
 
         private void LogError(Exception ex) {
+            Services.Logger.Error(ex);
             LogToDetailTextBox($"Fehler: {ex.Message}");
         }
 
@@ -1185,26 +1353,23 @@ namespace DataClean {
                     System.Diagnostics.Process.Start(startInfo);
                     Application.Exit();
                 } catch (Exception ex) {
-                    MessageBox.Show($"Fehler beim Neustarten mit Admin-Rechten: {ex.Message}", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    UI.AppDialog.Show(this, $"Fehler beim Neustarten mit Admin-Rechten: {ex.Message}", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             } else {
-                Task.Run(() => CleanDirectories());
+                StartCleanup();
             }
         }
 
-        private void ToggleButton_Click(object sender, EventArgs e) {
-            if (toggleButton.Text == "Beenden") {
-                notifyIcon1.Visible = false;
-                Application.Exit();
+        private void CancelButton_Click(object sender, EventArgs e) {
+            if (cleanupCts == null || cleanupCts.IsCancellationRequested) {
                 return;
             }
 
-            isErrorTextBoxVisible = !isErrorTextBoxVisible;
-
-            int extra = detailTextBox.Height + 10;
-            this.Height += isErrorTextBoxVisible ? extra : -extra;
-            detailTextBox.Visible = isErrorTextBoxVisible;
-            toggleButton.Text = isErrorTextBoxVisible ? "Details verbergen" : "Details anzeigen";
+            cleanupCts.Cancel();
+            cancelButton.Enabled = false;
+            pauseButton.Enabled = false;
+            UpdateStatusLabel(label1, "Abbruch angefordert \u2013 laufender Vorgang wird beendet...", themeStatusText);
+            LogToDetailTextBox("=== ABBRUCH durch Benutzer angefordert ===");
         }
 
         private void LinkLabel2_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
@@ -1212,14 +1377,14 @@ namespace DataClean {
         }
 
         private void LinkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
-            OpenWebPage(linkLabel1.Text);
+            OpenWebPage("https://schuppelius.org");
         }
 
         private void OpenMailClient(string email) {
             try {
                 System.Diagnostics.Process.Start($"mailto:{email}?subject=Anfrage");
             } catch (Exception ex) {
-                MessageBox.Show($"Fehler beim Öffnen des Mailprogramms: {ex.Message}", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                UI.AppDialog.Show(this, $"Fehler beim Öffnen des Mailprogramms: {ex.Message}", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1227,7 +1392,7 @@ namespace DataClean {
             try {
                 System.Diagnostics.Process.Start(url);
             } catch (Exception ex) {
-                MessageBox.Show($"Fehler beim Öffnen der Webseite: {ex.Message}", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                UI.AppDialog.Show(this, $"Fehler beim Öffnen der Webseite: {ex.Message}", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

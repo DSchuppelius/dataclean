@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 // Attribute gesteuert. Ändern Sie diese Attributwerte, um die Informationen zu ändern,
 // die einer Assembly zugeordnet sind.
 [assembly: AssemblyTitle("DataClean")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Automatische Systembereinigung")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Daniel Jörg Schuppelius")]
 [assembly: AssemblyProduct("DataClean")]

@@ -73,7 +73,7 @@ namespace DataClean {
                 }
             } catch (Exception ex) {
                 // WMI nicht verfügbar oder keine Berechtigung – nicht als Fehler werten.
-                System.Diagnostics.Debug.WriteLine($"CheckSmartStatus: {ex.Message}");
+                Services.Logger.Warn($"CheckSmartStatus: {ex.Message}", "HealthCheck");
             }
             return result;
         }
@@ -98,7 +98,7 @@ namespace DataClean {
                     }
                 }
             } catch (Exception ex) {
-                System.Diagnostics.Debug.WriteLine($"CheckDiskPredictFailure: {ex.Message}");
+                Services.Logger.Warn($"CheckDiskPredictFailure: {ex.Message}", "HealthCheck");
             }
             return result;
         }
@@ -125,7 +125,7 @@ namespace DataClean {
                     }
                 }
             } catch (Exception ex) {
-                System.Diagnostics.Debug.WriteLine($"CheckDiskSpace: {ex.Message}");
+                Services.Logger.Warn($"CheckDiskSpace: {ex.Message}", "HealthCheck");
             }
             return result;
         }
@@ -151,6 +151,10 @@ namespace DataClean {
                     int diskErrors = 0;
                     int hardwareErrors = 0;
 
+                    // Betroffene Datenträger erfassen (Bezeichner -> Fehleranzahl),
+                    // damit im Ergebnis vermerkt ist, welche Datenträger Fehler meldeten.
+                    var affectedDisks = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
                     foreach (System.Diagnostics.EventLogEntry entry in log.Entries) {
                         if (entry.TimeGenerated < since) {
                             continue;
@@ -168,6 +172,12 @@ namespace DataClean {
                             hardwareErrors++;
                         } else {
                             diskErrors++;
+
+                            string disk = ExtractDiskIdentifier(entry);
+                            if (!string.IsNullOrEmpty(disk)) {
+                                affectedDisks.TryGetValue(disk, out int count);
+                                affectedDisks[disk] = count + 1;
+                            }
                         }
                     }
 
@@ -177,14 +187,62 @@ namespace DataClean {
                     }
 
                     if (diskErrors > 0) {
+                        string disksText = affectedDisks.Count > 0
+                            ? " Betroffene Datenträger: " + string.Join(", ",
+                                affectedDisks.OrderBy(kv => kv.Key)
+                                             .Select(kv => $"{kv.Key} ({kv.Value})")) + "."
+                            : " Die betroffenen Datenträger konnten nicht eindeutig ermittelt werden.";
+
                         result.Add(new HealthIssue(HealthSeverity.Critical, "Datenträger",
-                            $"{diskErrors} schwere Datenträgerfehler in den letzten 24 Stunden erkannt."));
+                            $"{diskErrors} schwere Datenträgerfehler in den letzten 24 Stunden erkannt.{disksText}"));
                     }
                 }
             } catch (Exception ex) {
-                System.Diagnostics.Debug.WriteLine($"CheckHardwareEventLog: {ex.Message}");
+                Services.Logger.Warn($"CheckHardwareEventLog: {ex.Message}", "HealthCheck");
             }
             return result;
+        }
+
+        /// <summary>
+        /// Versucht, aus einem Datenträger-Fehlereintrag den betroffenen Datenträger zu ermitteln
+        /// (z. B. "\Device\Harddisk0\DR0"). Fällt auf die Quelle zurück, wenn kein Bezeichner gefunden wird.
+        /// </summary>
+        private static string ExtractDiskIdentifier(System.Diagnostics.EventLogEntry entry) {
+            try {
+                // Zuerst in den Ersetzungszeichenketten nach einem Geräte-/Datenträgerbezeichner suchen.
+                if (entry.ReplacementStrings != null) {
+                    foreach (var value in entry.ReplacementStrings) {
+                        string match = MatchDiskIdentifier(value);
+                        if (!string.IsNullOrEmpty(match)) {
+                            return match;
+                        }
+                    }
+                }
+
+                // Andernfalls die vollständige Meldung durchsuchen.
+                string fromMessage = MatchDiskIdentifier(entry.Message);
+                if (!string.IsNullOrEmpty(fromMessage)) {
+                    return fromMessage;
+                }
+            } catch {
+                // Bei nicht lesbaren Einträgen keinen Bezeichner liefern.
+            }
+
+            return null;
+        }
+
+        private static string MatchDiskIdentifier(string text) {
+            if (string.IsNullOrEmpty(text)) {
+                return null;
+            }
+
+            // Gängige Formen: "\Device\Harddisk0\DR0", "Harddisk1", "PhysicalDrive2", "\Device\HarddiskVolume3".
+            var match = System.Text.RegularExpressions.Regex.Match(
+                text,
+                @"(?:\\Device\\)?Harddisk(?:Volume)?\d+(?:\\DR\d+)?|PhysicalDrive\d+",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            return match.Success ? match.Value : null;
         }
     }
 }

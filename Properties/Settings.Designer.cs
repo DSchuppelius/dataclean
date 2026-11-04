@@ -12,7 +12,7 @@ namespace DataClean.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.11.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "18.11.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -25,13 +25,15 @@ namespace DataClean.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%;%PREFETCH%;%SOFTWARE_DISTRIBUTION%;%CRASH_DUMPS%;%THUMBNAIL_CACHE%;%EDGE_CACHE%;%CHROME_CACHE%;%FIREFOX_CACHE%;C:\\Temp")]
+        [global::System.Configuration.DefaultSettingValueAttribute("%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%;%PREFETCH%;%SOFTWARE_DISTRIBUTIO" +
+            "N%;%CRASH_DUMPS%;%THUMBNAIL_CACHE%;%EDGE_CACHE%;%CHROME_CACHE%;%FIREFOX_CACHE%;C" +
+            ":\\Temp")]
         public string cleanDirectories {
             get {
                 return ((string)(this["cleanDirectories"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("%WINDOWS%;%SYSTEM%;%PROGRAM_FILES%;%PROGRAM_FILES_X86%;%USERPROFILE%")]
@@ -40,16 +42,17 @@ namespace DataClean.Properties {
                 return ((string)(this["protectedDirectories"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%;%PREFETCH%;%SOFTWARE_DISTRIBUTION%;%CRASH_DUMPS%;%THUMBNAIL_CACHE%;%EDGE_CACHE%;%CHROME_CACHE%;%FIREFOX_CACHE%")]
+        [global::System.Configuration.DefaultSettingValueAttribute("%TEMP%;%INTERNET_CACHE%;%HISTORY%;%WINDOWS_TEMP%;%PREFETCH%;%SOFTWARE_DISTRIBUTIO" +
+            "N%;%CRASH_DUMPS%;%THUMBNAIL_CACHE%;%EDGE_CACHE%;%CHROME_CACHE%;%FIREFOX_CACHE%")]
         public string allowedSubdirectories {
             get {
                 return ((string)(this["allowedSubdirectories"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("True")]
@@ -58,7 +61,7 @@ namespace DataClean.Properties {
                 return ((bool)(this["emptyTrash"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("0")]
@@ -67,7 +70,7 @@ namespace DataClean.Properties {
                 return ((int)(this["minFileAgeDays"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -76,7 +79,7 @@ namespace DataClean.Properties {
                 return ((bool)(this["removeWindowsOld"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("True")]
@@ -85,7 +88,7 @@ namespace DataClean.Properties {
                 return ((bool)(this["flushDnsCache"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -94,7 +97,7 @@ namespace DataClean.Properties {
                 return ((bool)(this["clearEventLogs"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("True")]
@@ -103,7 +106,7 @@ namespace DataClean.Properties {
                 return ((bool)(this["healthCheckEnabled"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("5")]
@@ -112,7 +115,7 @@ namespace DataClean.Properties {
                 return ((int)(this["minFreeDiskPercent"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("True")]
@@ -121,7 +124,7 @@ namespace DataClean.Properties {
                 return ((bool)(this["notifyByTray"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -130,7 +133,7 @@ namespace DataClean.Properties {
                 return ((bool)(this["notifyByEmail"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
@@ -139,7 +142,7 @@ namespace DataClean.Properties {
                 return ((string)(this["smtpHost"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("25")]
@@ -148,13 +151,37 @@ namespace DataClean.Properties {
                 return ((int)(this["smtpPort"]));
             }
         }
-
+        
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool smtpEnableSsl {
             get {
                 return ((bool)(this["smtpEnableSsl"]));
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string smtpUser {
+            get {
+                return ((string)(this["smtpUser"]));
+            }
+            set {
+                this["smtpUser"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string smtpPasswordEncrypted {
+            get {
+                return ((string)(this["smtpPasswordEncrypted"]));
+            }
+            set {
+                this["smtpPasswordEncrypted"] = value;
             }
         }
 
@@ -166,16 +193,7 @@ namespace DataClean.Properties {
                 return ((string)(this["notifyFromAddress"]));
             }
         }
-
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string notifyToAddress {
-            get {
-                return ((string)(this["notifyToAddress"]));
-            }
-        }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -187,7 +205,7 @@ namespace DataClean.Properties {
                 this["dryRun"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -199,7 +217,7 @@ namespace DataClean.Properties {
                 this["createRestorePoint"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -211,7 +229,7 @@ namespace DataClean.Properties {
                 this["deleteToRecycleBin"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -223,7 +241,7 @@ namespace DataClean.Properties {
                 this["cleanBrowserCaches"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -235,7 +253,7 @@ namespace DataClean.Properties {
                 this["dismComponentCleanup"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -247,7 +265,7 @@ namespace DataClean.Properties {
                 this["cleanMinidumps"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -259,7 +277,7 @@ namespace DataClean.Properties {
                 this["cleanPrefetch"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -271,7 +289,7 @@ namespace DataClean.Properties {
                 this["cleanDeliveryOptimization"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -283,7 +301,7 @@ namespace DataClean.Properties {
                 this["cleanOldLogs"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("30")]
@@ -295,7 +313,7 @@ namespace DataClean.Properties {
                 this["oldLogAgeDays"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -305,6 +323,78 @@ namespace DataClean.Properties {
             }
             set {
                 this["emptyAllRecycleBins"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool confirmBeforeDelete {
+            get {
+                return ((bool)(this["confirmBeforeDelete"]));
+            }
+            set {
+                this["confirmBeforeDelete"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string excludePatterns {
+            get {
+                return ((string)(this["excludePatterns"]));
+            }
+            set {
+                this["excludePatterns"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool skipIfEnoughFreeSpace {
+            get {
+                return ((bool)(this["skipIfEnoughFreeSpace"]));
+            }
+            set {
+                this["skipIfEnoughFreeSpace"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool verboseLogging {
+            get {
+                return ((bool)(this["verboseLogging"]));
+            }
+            set {
+                this["verboseLogging"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool schedulePendingDeletes {
+            get {
+                return ((bool)(this["schedulePendingDeletes"]));
+            }
+            set {
+                this["schedulePendingDeletes"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("System")]
+        public string themeOverride {
+            get {
+                return ((string)(this["themeOverride"]));
+            }
+            set {
+                this["themeOverride"] = value;
             }
         }
 
@@ -319,7 +409,7 @@ namespace DataClean.Properties {
                 this["generateReport"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
@@ -331,7 +421,7 @@ namespace DataClean.Properties {
                 this["reportPath"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("HTML")]
@@ -343,7 +433,7 @@ namespace DataClean.Properties {
                 this["reportFormat"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
@@ -353,6 +443,15 @@ namespace DataClean.Properties {
             }
             set {
                 this["emailReport"] = value;
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("support@schuppelius.org")]
+        public string notifyToAddress {
+            get {
+                return ((string)(this["notifyToAddress"]));
             }
         }
     }
