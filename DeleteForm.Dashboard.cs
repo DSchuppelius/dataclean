@@ -37,6 +37,7 @@ namespace DataClean {
         private const int ResultVisibleMs = 2500;
         private const int AutoCloseDelayMs = 7500;
         private const int IdlePollMs = 250;
+        private const int BusyElapsedAfterSeconds = 3;
 
         private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
 
@@ -67,6 +68,12 @@ namespace DataClean {
         private int directoriesTotal;
         private double overallFraction;
 
+        // Schritt ohne Dateifortschritt (z. B. DISM). Wird nur auf dem UI-Thread geändert.
+        private string busyStatus;
+        private DateTime busyStartedAt;
+        private double busyPercent = -1d;
+        private string defaultStatusText;
+
         // Farben der Statuszeile unter der Überschrift.
         private Color themeStatusText;
         private Color themeSuccess;
@@ -83,8 +90,14 @@ namespace DataClean {
 
         private void InitializeDashboard() {
             ApplyStatusColors();
+            defaultStatusText = label1.Text;
 
             FooterControl = footerPanel;
+
+            // Das Logo steckt bereits als Anwendungssymbol in der Exe; 128 px ist die größte zuverlässig lesbare Stufe.
+            using (var logo = new Icon(Icon, 128, 128)) {
+                SidebarLogo = logo.ToBitmap();
+            }
             activityFilterCombo.SelectedIndex = 0;
 
             if (dryRun) {
@@ -309,6 +322,7 @@ namespace DataClean {
         private void ShowFinishedState(string title) {
             dashboardTimer.Stop();
             isPaused = false;
+            ClearBusyStep();
             headerTitleLabel.Text = title;
             pauseButton.Visible = false;
             cancelButton.Visible = false;
@@ -317,9 +331,85 @@ namespace DataClean {
             RefreshDashboard();
         }
 
+        private void RunOnUiThread(Action action) {
+            if (InvokeRequired) {
+                Invoke(action);
+            } else {
+                action();
+            }
+        }
+
+        // Zeigt für lange Schritte, dass die Anwendung arbeitet: Laufbalken, Schrittname und Laufzeit.
+        private void BeginBusyStep(string status, string target) {
+            RunOnUiThread(() => {
+                busyStatus = status;
+                busyStartedAt = DateTime.Now;
+                busyPercent = -1d;
+                label2.Text = "Aktueller Schritt";
+                directoryValueLabel.Text = target;
+                label1.ForeColor = themeStatusText;
+                label1.Text = BuildBusyText();
+                progressBar1.Value = 0;
+                progressBar1.Marquee = true;
+                // Ein laufendes externes Programm lässt sich nicht anhalten; der Button würde nichts bewirken.
+                pauseButton.Enabled = false;
+            });
+        }
+
+        // Liefert ein Programm Prozentwerte, wird aus dem Laufbalken eine echte Fortschrittsanzeige.
+        private void ReportBusyProgress(double percent) {
+            BeginInvoke(new Action(() => {
+                if (busyStatus == null) {
+                    return;
+                }
+                busyPercent = percent;
+                progressBar1.Marquee = false;
+                progressBar1.Maximum = 1000;
+                progressBar1.Value = (int)Math.Round(percent * 10d);
+                label1.Text = BuildBusyText();
+            }));
+        }
+
+        private void EndBusyStep() {
+            RunOnUiThread(() => {
+                if (busyStatus == null) {
+                    return;
+                }
+                ClearBusyStep();
+                progressBar1.Value = 0;
+                label1.Text = dryRun ? "Vorschau-Modus – es wird nichts gelöscht." : defaultStatusText;
+                pauseButton.Enabled = cleanupCts != null && !cleanupCts.IsCancellationRequested;
+            });
+        }
+
+        private void ClearBusyStep() {
+            busyStatus = null;
+            busyPercent = -1d;
+            progressBar1.Marquee = false;
+            label2.Text = "Aktuelles Verzeichnis";
+        }
+
+        private string BuildBusyText() {
+            string text = cleanupCts != null && cleanupCts.IsCancellationRequested
+                ? "Abbruch angefordert – laufender Schritt wird noch abgeschlossen"
+                : busyStatus;
+            if (busyPercent >= 0d) {
+                text += $" · {busyPercent:0} %";
+            }
+            TimeSpan elapsed = DateTime.Now - busyStartedAt;
+            if (elapsed.TotalSeconds >= BusyElapsedAfterSeconds) {
+                text += $" · {(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
+            }
+            return text;
+        }
+
         private void RefreshDashboard() {
             FlushDetailLog();
             DrainActivity();
+
+            if (busyStatus != null) {
+                label1.Text = BuildBusyText();
+            }
 
             statFreed.Value = FormatBytes(System.Threading.Interlocked.Read(ref freedBytes));
             int deleted = System.Threading.Volatile.Read(ref deletedItemCount);
@@ -367,6 +457,8 @@ namespace DataClean {
                 phaseFraction = directoriesTotal > 0
                     ? Math.Min(1d, (directoriesDone + progressBar1.Fraction) / directoriesTotal)
                     : 1d;
+            } else if (busyPercent >= 0d) {
+                phaseFraction = busyPercent / 100d;
             }
 
             double overall = (currentPhase - 1 + phaseFraction) / totalPhases;

@@ -198,6 +198,9 @@ namespace DataClean.UI {
         private int maximum = 100;
         private int value;
         private int glowSize = 4;
+        private bool marquee;
+        private float marqueePosition;
+        private Timer marqueeTimer;
 
         public NeonProgressBar() {
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
@@ -234,6 +237,32 @@ namespace DataClean.UI {
             set { glowSize = Math.Max(0, value); Invalidate(); }
         }
 
+        /// <summary>Laufbalken für Schritte ohne messbaren Fortschritt. Nur vom UI-Thread setzen.</summary>
+        [DefaultValue(false)]
+        public bool Marquee {
+            get { return marquee; }
+            set {
+                if (marquee == value) {
+                    return;
+                }
+                marquee = value;
+                marqueePosition = 0f;
+                if (marquee) {
+                    if (marqueeTimer == null) {
+                        marqueeTimer = new Timer { Interval = 33 };
+                        marqueeTimer.Tick += (s, e) => {
+                            marqueePosition = marqueePosition >= 1f ? 0f : marqueePosition + 0.012f;
+                            Invalidate();
+                        };
+                    }
+                    marqueeTimer.Start();
+                } else if (marqueeTimer != null) {
+                    marqueeTimer.Stop();
+                }
+                Invalidate();
+            }
+        }
+
         /// <summary>Anteil von 0.0 bis 1.0.</summary>
         [Browsable(false)]
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -261,6 +290,19 @@ namespace DataClean.UI {
                 g.FillPath(brush, path);
             }
 
+            if (marquee) {
+                int segment = Math.Max(track.Width / 4, 40);
+                int left = track.X - segment + (int)((track.Width + segment) * marqueePosition);
+                Rectangle moving = Rectangle.Intersect(track, new Rectangle(left, track.Y, segment, track.Height));
+                if (moving.Width > 0) {
+                    using (var path = AppTheme.RoundedPath(moving, radius))
+                    using (var brush = new SolidBrush(AppTheme.Accent)) {
+                        g.FillPath(brush, path);
+                    }
+                }
+                return;
+            }
+
             int fillWidth = (int)Math.Round(track.Width * Fraction);
             if (fillWidth <= 0) {
                 return;
@@ -281,6 +323,14 @@ namespace DataClean.UI {
                 Lighten(AppTheme.Accent, 0.28f), AppTheme.Accent, LinearGradientMode.Vertical)) {
                 g.FillPath(brush, path);
             }
+        }
+
+        protected override void Dispose(bool disposing) {
+            if (disposing && marqueeTimer != null) {
+                marqueeTimer.Dispose();
+                marqueeTimer = null;
+            }
+            base.Dispose(disposing);
         }
 
         private static Color Lighten(Color c, float amount) {

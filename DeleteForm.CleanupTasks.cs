@@ -161,29 +161,63 @@ namespace DataClean {
                 return;
             }
 
-            Invoke(new Action(() => UpdateStatusLabel(label1, "DISM Komponentenbereinigung läuft (kann dauern)...", themeStatusText)));
+            await RunDismProcessAsync("dism.exe", "/Online /Cleanup-Image /StartComponentCleanup");
+        }
 
+        // Letzte Ausgabe von DISM. Fehler schreibt DISM in die normale Ausgabe, nicht in die Fehlerausgabe.
+        private readonly Queue<string> dismOutputTail = new Queue<string>();
+        private const int DismOutputTailLines = 6;
+        private double lastDismPercent = -1d;
+
+        private async Task RunDismProcessAsync(string fileName, string arguments) {
+            BeginBusyStep("DISM Komponentenbereinigung läuft (kann dauern)", "Windows-Komponentenspeicher");
             try {
-                var psi = new System.Diagnostics.ProcessStartInfo("dism.exe",
-                    "/Online /Cleanup-Image /StartComponentCleanup") {
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                };
-
-                await Task.Run(() => {
-                    using (var process = System.Diagnostics.Process.Start(psi)) {
-                        string stderr = process.StandardError.ReadToEnd();
-                        process.WaitForExit(600000); // bis zu 10 Minuten
-
-                        LogToDetailTextBox(process.ExitCode == 0
-                            ? "DISM Komponentenbereinigung erfolgreich abgeschlossen."
-                            : $"DISM Komponentenbereinigung mit Code {process.ExitCode} beendet: {stderr.Trim()}");
-                    }
-                });
+                Services.ProcessResult result = await Task.Run(() =>
+                    Services.ProcessRunner.Run(fileName, arguments, OnDismOutput, DismTimeout));
+                ReportDismResult(result);
             } catch (Exception ex) {
-                LogToDetailTextBox($"DISM Komponentenbereinigung fehlgeschlagen: {ex.Message}");
+                ReportDismProblem($"DISM Komponentenbereinigung fehlgeschlagen: {ex.Message}");
+            } finally {
+                EndBusyStep();
+            }
+        }
+
+        private void ReportDismResult(Services.ProcessResult result) {
+            string progress = lastDismPercent >= 0d ? $" Letzter Fortschritt: {lastDismPercent:0} %." : string.Empty;
+
+            if (result.TimedOut) {
+                ReportDismProblem($"DISM Komponentenbereinigung nach {DismTimeout.TotalMinutes:0} Minuten noch nicht beendet und läuft im Hintergrund weiter.{progress}");
+            } else if (result.ExitCode == 0) {
+                LogToDetailTextBox("DISM Komponentenbereinigung erfolgreich abgeschlossen.");
+            } else {
+                string detail = result.ErrorOutput;
+                if (string.IsNullOrEmpty(detail)) {
+                    lock (dismOutputTail) {
+                        detail = string.Join(" ", dismOutputTail);
+                    }
+                }
+                ReportDismProblem($"DISM Komponentenbereinigung mit Code {result.ExitCode} (0x{result.ExitCode:X8}) beendet.{progress} {detail}".TrimEnd());
+            }
+        }
+
+        // Das Fenster schließt sich meist von selbst; das Log bleibt als Nachweis erhalten.
+        private void ReportDismProblem(string message) {
+            LogToDetailTextBox(message);
+            Services.Logger.Warn(message, "DISM");
+        }
+
+        private void OnDismOutput(string line) {
+            double percent;
+            if (Services.DismProgressParser.TryParsePercent(line, out percent)) {
+                lastDismPercent = percent;
+                ReportBusyProgress(percent);
+            } else if (!string.IsNullOrWhiteSpace(line)) {
+                lock (dismOutputTail) {
+                    dismOutputTail.Enqueue(line.Trim());
+                    while (dismOutputTail.Count > DismOutputTailLines) {
+                        dismOutputTail.Dequeue();
+                    }
+                }
             }
         }
 
@@ -196,7 +230,7 @@ namespace DataClean {
                 return;
             }
 
-            Invoke(new Action(() => UpdateStatusLabel(label1, "Leere Papierkorb aller Laufwerke...", themeStatusText)));
+            BeginBusyStep("Leere Papierkorb aller Laufwerke", "Papierkorb");
 
             foreach (var drive in DriveInfo.GetDrives()) {
                 if (!drive.IsReady) {
@@ -217,6 +251,8 @@ namespace DataClean {
                     LogToDetailTextBox($"Papierkorb auf {drive.Name} fehlgeschlagen: {ex.Message}");
                 }
             }
+
+            EndBusyStep();
         }
 
         // Durchläuft einen Ordnerbaum und zählt nicht lesbare Ordner als übersprungen.

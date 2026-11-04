@@ -20,6 +20,8 @@ namespace DataClean.UI {
         private const int SidebarWidth = 176;
         private const int NavTop = 26;
         private const int NavSpacing = 40;
+        private const int SidebarLogoSize = 104;
+        private const int SidebarLogoMargin = 20;
 
         private const int WM_NCHITTEST = 0x84;
         private const int HTLEFT = 10, HTRIGHT = 11, HTTOP = 12, HTTOPLEFT = 13,
@@ -73,6 +75,11 @@ namespace DataClean.UI {
         [Browsable(false)]
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Control FooterControl { get; set; }
+
+        /// <summary>Bild unten in der Sidebar, z. B. das Firmenlogo. Vor dem Laden setzen.</summary>
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Image SidebarLogo { get; set; }
 
         /// <summary>Text rechts neben der Marke in der Titelleiste.</summary>
         [Browsable(false)]
@@ -246,7 +253,26 @@ namespace DataClean.UI {
                 using (var pen = new Pen(AppTheme.Separator)) {
                     e.Graphics.DrawLine(pen, sidebarPanel.Width - 1, 0, sidebarPanel.Width - 1, sidebarPanel.Height);
                 }
+                PaintSidebarLogo(e.Graphics);
             };
+            // Das Logo hängt am unteren Rand: Ändert sich die Höhe, muss die ganze Fläche neu gezeichnet werden.
+            sidebarPanel.Resize += (s, e) => sidebarPanel.Invalidate();
+        }
+
+        private void PaintSidebarLogo(Graphics g) {
+            if (SidebarLogo == null) {
+                return;
+            }
+
+            int navBottom = NavTop + navItems.Count * NavSpacing;
+            int top = sidebarPanel.Height - SidebarLogoSize - SidebarLogoMargin;
+            if (top < navBottom + SidebarLogoMargin) {
+                return; // Bei wenig Höhe hat die Navigation Vorrang.
+            }
+
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            g.DrawImage(SidebarLogo, new Rectangle((sidebarPanel.Width - SidebarLogoSize) / 2, top, SidebarLogoSize, SidebarLogoSize));
         }
 
         /// <summary>Fügt einen Navigationseintrag hinzu. Erst nach dem Laden aufrufen.</summary>

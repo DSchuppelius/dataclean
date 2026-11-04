@@ -30,6 +30,10 @@ namespace DataClean {
         private bool updateServicesStopped = false;
         private CancellationTokenSource cleanupCts;
 
+        // Maximale Wartezeiten auf externe Programme. Danach geht die Bereinigung weiter.
+        private static readonly TimeSpan DismTimeout = TimeSpan.FromMinutes(30);
+        private static readonly TimeSpan RestorePointTimeout = TimeSpan.FromMinutes(2);
+
         // Ergebnisse der Systemprüfung werden zwischengespeichert und erst am Ende
         // ausgegeben, damit sie nicht im Protokoll der gelöschten Dateien untergehen.
         private List<HealthIssue> pendingHealthIssues;
@@ -448,10 +452,7 @@ namespace DataClean {
 
         private async Task RemoveWindowsOldAsync() {
             try {
-                Invoke(new Action(() => {
-                    UpdateStatusLabel(directoryValueLabel, "Windows.old");
-                    UpdateStatusLabel(label1, dryRun ? "Prüfe Windows.old..." : "Entferne Windows.old...", themeStatusText);
-                }));
+                BeginBusyStep(dryRun ? "Prüfe Windows.old" : "Entferne Windows.old", "Windows.old");
 
                 string systemDrive = Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.Windows));
                 var windowsOld = new DirectoryInfo(Path.Combine(systemDrive, "Windows.old"));
@@ -473,6 +474,8 @@ namespace DataClean {
                 }
             } catch (Exception ex) {
                 LogError(ex);
+            } finally {
+                EndBusyStep();
             }
         }
 
@@ -510,7 +513,7 @@ namespace DataClean {
             }
 
             try {
-                Invoke(new Action(() => UpdateStatusLabel(label1, "Leere Windows-Event-Logs...", themeStatusText)));
+                BeginBusyStep("Leere Windows-Event-Logs", "Windows-Event-Logs");
 
                 foreach (var logName in System.Diagnostics.EventLog.GetEventLogs().Select(l => l.Log).Distinct()) {
                     try {
@@ -524,6 +527,8 @@ namespace DataClean {
                 }
             } catch (Exception ex) {
                 LogError(ex);
+            } finally {
+                EndBusyStep();
             }
         }
 
@@ -534,8 +539,7 @@ namespace DataClean {
 
             foreach (var service in services) {
                 try {
-                    Invoke(new Action(() => UpdateStatusLabel(label1,
-                        $"Dienst {service} wird {(start ? "gestartet" : "gestoppt")}...", themeStatusText)));
+                    BeginBusyStep($"Dienst {service} wird {(start ? "gestartet" : "gestoppt")}", "Windows Update");
 
                     var psi = new System.Diagnostics.ProcessStartInfo("net", $"{action} {service}") {
                         CreateNoWindow = true,
@@ -552,6 +556,8 @@ namespace DataClean {
                 }
             }
 
+            EndBusyStep();
+
             if (!start) {
                 // Kurze Pause, damit Dateihandles freigegeben werden.
                 System.Threading.Thread.Sleep(1000);
@@ -562,37 +568,28 @@ namespace DataClean {
         }
 
         private async Task CreateRestorePointAsync() {
+            performedTasks.Add("Systemwiederherstellungspunkt");
+            BeginBusyStep("Erstelle Systemwiederherstellungspunkt", "Systemwiederherstellung");
             try {
-                Invoke(new Action(() => UpdateStatusLabel(label1, "Erstelle Systemwiederherstellungspunkt...", themeStatusText)));
-                performedTasks.Add("Systemwiederherstellungspunkt");
-
                 // Checkpoint-Computer legt einen Wiederherstellungspunkt an. Erfordert aktivierte
                 // Systemwiederherstellung und Administratorrechte; Fehler werden toleriert.
-                string psCommand =
+                const string psCommand =
                     "Checkpoint-Computer -Description 'DataClean Bereinigung' -RestorePointType 'MODIFY_SETTINGS'";
 
-                var psi = new System.Diagnostics.ProcessStartInfo("powershell.exe",
-                    $"-NoProfile -ExecutionPolicy Bypass -Command \"{psCommand}\"") {
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                };
+                Services.ProcessResult result = await Task.Run(() => Services.ProcessRunner.Run("powershell.exe",
+                    $"-NoProfile -ExecutionPolicy Bypass -Command \"{psCommand}\"", null, RestorePointTimeout));
 
-                await Task.Run(() => {
-                    using (var process = System.Diagnostics.Process.Start(psi)) {
-                        string stderr = process.StandardError.ReadToEnd();
-                        process.WaitForExit(120000);
-
-                        if (process.ExitCode == 0) {
-                            LogToDetailTextBox("Systemwiederherstellungspunkt erfolgreich erstellt.");
-                        } else {
-                            LogToDetailTextBox($"Systemwiederherstellungspunkt konnte nicht erstellt werden: {stderr.Trim()}");
-                        }
-                    }
-                });
+                if (result.TimedOut) {
+                    LogToDetailTextBox("Systemwiederherstellungspunkt noch nicht fertig – die Bereinigung wird fortgesetzt.");
+                } else if (result.ExitCode == 0) {
+                    LogToDetailTextBox("Systemwiederherstellungspunkt erfolgreich erstellt.");
+                } else {
+                    LogToDetailTextBox($"Systemwiederherstellungspunkt konnte nicht erstellt werden: {result.ErrorOutput}");
+                }
             } catch (Exception ex) {
                 LogToDetailTextBox($"Systemwiederherstellungspunkt übersprungen: {ex.Message}");
+            } finally {
+                EndBusyStep();
             }
         }
 
@@ -696,12 +693,10 @@ namespace DataClean {
                     await BeginPhaseAsync("Papierkorb leeren", cancellationToken);
                     UpdateStatusLabel(directoryValueLabel, "Papierkorb");
                     if (!dryRun) {
-                        UpdateStatusLabel(label1, "Leere Papierkorb...", themeStatusText);
+                        BeginBusyStep("Leere Papierkorb", "Papierkorb");
                     }
                     EmptyRecycleBin();
-                    if (!dryRun) {
-                        UpdateStatusLabel(label1, "Papierkorb geleert.", themeStatusText);
-                    }
+                    EndBusyStep();
                 }
 
                 if (removeWindowsOld) {
@@ -811,6 +806,8 @@ namespace DataClean {
 
         private async Task ProcessDirectory(DirectoryInfo dir, CancellationToken cancellationToken) {
             try {
+                // Große Ordnerbäume einzulesen dauert; der Laufbalken zeigt, dass es weitergeht.
+                Invoke(new Action(() => progressBar1.Marquee = true));
                 List<DirectoryInfo> readable = WalkDirectories(dir).ToList();
                 var files = readable.SelectMany(Services.DirectoryWalker.EnumerateFiles).ToList();
 
@@ -822,6 +819,7 @@ namespace DataClean {
                     .ToList();
 
                 Invoke(new Action(() => {
+                    progressBar1.Marquee = false;
                     progressBar1.Value = 0;
                     progressBar1.Maximum = files.Count + directories.Count;
                 }));
@@ -1140,11 +1138,15 @@ namespace DataClean {
         private async Task CompleteProcess() {
             // Sicherstellen, dass der parallele Health-Check abgeschlossen ist, und
             // dessen Ergebnisse jetzt – nach den gelöschten Dateien – gebündelt ausgeben.
+            if (healthCheckTask != null && !healthCheckTask.IsCompleted) {
+                BeginBusyStep("Systemprüfung wird abgeschlossen", "Systemprüfung");
+            }
             try {
                 healthCheckTask?.Wait(TimeSpan.FromSeconds(30));
             } catch (Exception ex) {
                 Services.Logger.Warn($"HealthCheck-Wait: {ex.Message}", "DeleteForm");
             }
+            EndBusyStep();
 
             FlushHealthCheckResults();
 

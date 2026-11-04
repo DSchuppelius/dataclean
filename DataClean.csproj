@@ -112,6 +112,8 @@
     <Compile Include="Services\DirectoryProtectionService.cs" />
     <Compile Include="Services\FileAgeFilter.cs" />
     <Compile Include="Services\ReportBuilder.cs" />
+    <Compile Include="Services\ProcessRunner.cs" />
+    <Compile Include="Services\DismProgressParser.cs" />
     <Compile Include="Services\CleanupProfileStore.cs" />
     <Compile Include="Services\ExcludeRuleMatcher.cs" />
     <Compile Include="Services\RunHistoryStore.cs" />
