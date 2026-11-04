@@ -37,10 +37,10 @@ namespace DataClean.Services {
         /// </summary>
         public static bool TaskExists() {
             string message;
-            return RunSchtasks($"/Query /TN \"{TaskName}\"", out message);
+            return RunSchtasks($"/Query /TN \"{TaskName}\"", out message, logFailure: false);
         }
 
-        private static bool RunSchtasks(string arguments, out string message) {
+        private static bool RunSchtasks(string arguments, out string message, bool logFailure = true) {
             try {
                 var psi = new ProcessStartInfo("schtasks.exe", arguments) {
                     UseShellExecute = false,
@@ -58,7 +58,7 @@ namespace DataClean.Services {
 
                     message = string.IsNullOrWhiteSpace(stderr) ? stdout.Trim() : stderr.Trim();
                     bool success = process.ExitCode == 0;
-                    if (!success) {
+                    if (!success && logFailure) {
                         Logger.Warn($"schtasks beendet mit Code {process.ExitCode}: {message}", "SchedulerService");
                     }
                     return success;

@@ -9,7 +9,9 @@ namespace DataClean.Services {
     public enum LogLevel {
         Info = 0,
         Warn = 1,
-        Error = 2
+        Error = 2,
+        /// <summary>Nichts protokollieren, z. B. für absichtlich provozierte Fehler in Tests.</summary>
+        None = 3
     }
 
     /// <summary>

@@ -36,7 +36,14 @@ namespace DataClean.Tests {
 
         [TestMethod]
         public void Decrypt_InvalidData_ReturnsEmpty() {
-            Assert.AreEqual(string.Empty, SecureSettings.Decrypt("kein-gültiges-base64!!!"));
+            // Der absichtlich provozierte Fehler soll nicht im echten Anwendungsprotokoll landen.
+            LogLevel previous = Logger.MinimumLevel;
+            Logger.MinimumLevel = LogLevel.None;
+            try {
+                Assert.AreEqual(string.Empty, SecureSettings.Decrypt("kein-gültiges-base64!!!"));
+            } finally {
+                Logger.MinimumLevel = previous;
+            }
         }
     }
 }

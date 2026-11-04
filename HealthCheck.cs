@@ -97,6 +97,10 @@ namespace DataClean {
                         }
                     }
                 }
+            } catch (Exception ex) when (ex is UnauthorizedAccessException ||
+                                         (ex is ManagementException wmi && wmi.ErrorCode == ManagementStatus.AccessDenied)) {
+                // Ohne Administratorrechte erwartbar – die übrigen Prüfungen laufen weiter.
+                Services.Logger.Info("SMART-Ausfallvorhersage übersprungen: Administratorrechte erforderlich.", "HealthCheck");
             } catch (Exception ex) {
                 Services.Logger.Warn($"CheckDiskPredictFailure: {ex.Message}", "HealthCheck");
             }
