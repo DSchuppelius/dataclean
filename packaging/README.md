@@ -1,22 +1,39 @@
 # DataClean – Paketierung / Veröffentlichung
 
 Dieses Verzeichnis enthält das Skript und die Installer-Definition, aus denen die
-verteilbaren Pakete von DataClean entstehen: ein Installer und ein portables ZIP.
+verteilbaren Pakete von DataClean entstehen: ein Installer, die einzelne Exe und ein
+portables ZIP.
 
 ## Release veröffentlichen
 
 1. Alle Änderungen committen und pushen. Gebaut wird der Stand des Tags.
-2. Auf GitHub ein Release mit einem Tag wie `v2.0.0` veröffentlichen.
+2. Die Version taggen und das Tag pushen:
 
-Der Workflow `.github/workflows/release.yml` baut und testet dann und hängt
-`DataClean-Setup-<Version>.exe` und `DataClean-<Version>.zip` an das Release. Die
-Version kommt aus dem Tag.
+   ```powershell
+   git tag v2.0.0
+   git push origin v2.0.0
+   ```
 
-Ohne Release lässt er sich unter **Actions → Release → Run workflow** als Probelauf
+Der Workflow `.github/workflows/release.yml` baut und testet dann und veröffentlicht
+ein Release mit diesen Dateien. Die Version kommt aus dem Tag, die Release-Notizen
+erzeugt GitHub aus den Commits.
+
+| Datei                           | Inhalt                                       |
+|---------------------------------|----------------------------------------------|
+| `DataClean-Setup-<Version>.exe` | Installer                                    |
+| `DataClean.exe`                 | Programm ohne Installation                   |
+| `DataClean-<Version>.zip`       | Programm, `DataClean.exe.config` und Lizenz  |
+
+Schlägt ein Schritt fehl, entsteht kein Release. Gibt es zum Tag schon ein Release,
+etwa weil es auf GitHub zusammen mit dem Tag angelegt wurde, behält es seinen Text
+und bekommt nur die Dateien. Ein Release zu einem schon vorhandenen Tag startet den
+Workflow nicht.
+
+Ohne Tag lässt er sich unter **Actions → Release → Run workflow** als Probelauf
 starten. Die Dateien liegen danach als Build-Artefakt am Lauf.
 
 Die Exe auf NETLOGON aktualisiert der Workflow nicht. Sie wird weiter von Hand
-kopiert; dafür enthält das ZIP die nötigen Dateien.
+kopiert; dafür liegt die `DataClean.exe` am Release.
 
 ## Voraussetzungen zum lokalen Bauen
 
@@ -33,13 +50,15 @@ kopiert; dafür enthält das ZIP die nötigen Dateien.
 
 Ohne `-Version` gilt die Version aus `Properties/AssemblyInfo.cs`. Das Ergebnis liegt
 unter `artifacts/`. Das ZIP enthält die `DataClean.exe`, die `DataClean.exe.config`
-und die Lizenz.
+und die Lizenz, daneben liegt die `DataClean.exe` noch einmal einzeln.
 
 ## Installation beim Endanwender
 
 Der Installer legt DataClean unter `%ProgramFiles%\DataClean` ab, trägt es ins
 Startmenü ein und prüft, ob das .NET Framework 4.8 vorhanden ist. Beim ZIP genügt es,
-den Inhalt in einen Ordner zu entpacken.
+den Inhalt in einen Ordner zu entpacken. Die einzelne `DataClean.exe` läuft ohne
+weitere Dateien mit den eingebauten Standardwerten; um etwa die Ordnerliste zu ändern,
+braucht sie die `DataClean.exe.config` aus dem ZIP.
 
 Einstellungen und Profile werden benutzerbezogen unter `%APPDATA%\DataClean` bzw.
 `%LOCALAPPDATA%\DataClean` abgelegt.

@@ -1,13 +1,16 @@
-# Baut, testet und paketiert DataClean, sobald ein GitHub-Release veröffentlicht wird, und hängt
-# Installer und ZIP an das Release. Das Tag bestimmt die Version: v2.0.0 ergibt 2.0.0.
+# Baut, testet und paketiert DataClean, sobald ein Versions-Tag gepusht wird, und veröffentlicht
+# dazu ein GitHub-Release mit Installer, einzelner Exe und ZIP. Das Tag bestimmt die Version:
+# v2.0.0 ergibt 2.0.0. Schlägt ein Schritt fehl, entsteht kein Release.
 #
 # Der manuelle Start ist ein Probelauf: Er baut dasselbe, legt die Dateien aber nur als
 # Build-Artefakt ab und ändert kein Release.
 name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
     inputs:
       version:
@@ -33,7 +36,7 @@ jobs:
       - name: Version bestimmen
         id: version
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || '' }}
           INPUT_VERSION: ${{ inputs.version }}
         run: |
           $version = if ($env:RELEASE_TAG) { $env:RELEASE_TAG -replace '^v', '' } else { $env:INPUT_VERSION }
@@ -47,17 +50,27 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: ./packaging/build-package.ps1 -Version $env:VERSION -RunTests -Installer
 
-      - name: An das Release anhängen
-        if: github.event_name == 'release'
+      - name: Release veröffentlichen
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.ref_name }}
           VERSION: ${{ steps.version.outputs.version }}
-        run: gh release upload $env:RELEASE_TAG "artifacts/DataClean-Setup-$env:VERSION.exe" "artifacts/DataClean-$env:VERSION.zip" --clobber
+        run: |
+          # gh meldet ein fehlendes Release über den Exitcode; das darf hier nicht abbrechen.
+          $PSNativeCommandUseErrorActionPreference = $false
+          $files = "artifacts/DataClean-Setup-$env:VERSION.exe", "artifacts/DataClean.exe", "artifacts/DataClean-$env:VERSION.zip"
+          gh release view $env:RELEASE_TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+              # Ein auf GitHub zusammen mit dem Tag angelegtes Release behält seinen Text.
+              gh release upload $env:RELEASE_TAG $files --clobber
+          } else {
+              gh release create $env:RELEASE_TAG $files --verify-tag --generate-notes --title "DataClean $env:VERSION"
+          }
 
       - name: Als Build-Artefakt ablegen
-        if: github.event_name != 'release'
+        if: github.event_name != 'push'
         uses: actions/upload-artifact@v7
         with:
           name: DataClean-${{ steps.version.outputs.version }}
