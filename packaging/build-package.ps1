@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Baut das Projekt in der angegebenen Konfiguration mit MSBuild und legt unter .\artifacts ein
-    portables ZIP-Archiv und auf Wunsch einen Installer ab.
+    portables ZIP-Archiv, die einzelne DataClean.exe und auf Wunsch einen Installer ab.
 
     ClickOnce-Manifeste entstehen dabei nicht: Ihr Signaturzertifikat liegt nur auf dem
     Entwicklungsrechner, auf einem Build-Server würde der Build daran scheitern.
@@ -168,6 +168,11 @@ Compress-Archive -Path $include -DestinationPath $zipPath -CompressionLevel Opti
 
 Write-Host ""
 Write-Host "Paket erstellt: $zipPath" -ForegroundColor Green
+
+# Die Exe läuft auch allein: Die Standardwerte der Konfiguration sind in ihr enthalten.
+$exePath = Join-Path $artifacts 'DataClean.exe'
+Copy-Item -LiteralPath (Join-Path $outputDir 'DataClean.exe') -Destination $exePath -Force
+Write-Host "Exe abgelegt: $exePath" -ForegroundColor Green
 
 if ($Installer) {
     & $iscc "/DAppVersion=$Version" "/DBuildDir=$outputDir" '/Qp' (Join-Path $PSScriptRoot 'DataClean.iss')
