@@ -19,6 +19,8 @@ namespace DataClean
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            UpgradeSettingsAfterVersionChange();
+
             // Das Bereinigen von Systemordnern wie SoftwareDistribution erfordert Administratorrechte.
             // Eine UAC-Abfrage wird aber nur ausgelöst, wenn der Benutzer auch Mitglied der
             // Administratorengruppe ist. Ein echter Standardbenutzer (z. B. beim Autostart) wird
@@ -55,6 +57,29 @@ namespace DataClean
             }
 
             Application.Run(new DeleteForm(isAutostart));
+        }
+
+        // Benutzereinstellungen liegen je Version in einem eigenen Ordner. Ohne Übernahme stünde
+        // nach jedem Versionswechsel alles wieder auf den Standardwerten. Ein Fehler dabei darf
+        // den Start nicht verhindern, sonst bliebe auch der Autostart stehen.
+        private static void UpgradeSettingsAfterVersionChange()
+        {
+            var settings = Properties.Settings.Default;
+            if (!settings.settingsUpgradeRequired)
+            {
+                return;
+            }
+
+            try
+            {
+                settings.Upgrade();
+                settings.settingsUpgradeRequired = false;
+                settings.Save();
+            }
+            catch (System.Configuration.ConfigurationException ex)
+            {
+                Services.Logger.Warn($"Einstellungen der Vorversion nicht übernommen: {ex.Message}", "Program");
+            }
         }
 
         private static bool IsAutostart(string[] args)

@@ -1,39 +1,58 @@
 # DataClean – Paketierung / Veröffentlichung
 
-Dieses Verzeichnis enthält ein Skript, das eine verteilbare Version von DataClean
-erzeugt. Es wird bewusst auf ein portables ZIP-Paket gesetzt, da das Projekt auf
-.NET Framework 4.8 (WinForms, klassisches csproj) basiert und damit ohne
-zusätzliche SDK-Abhängigkeiten gebaut werden kann.
+Dieses Verzeichnis enthält das Skript und die Installer-Definition, aus denen die
+verteilbaren Pakete von DataClean entstehen: ein Installer und ein portables ZIP.
 
-## Voraussetzungen
+## Release veröffentlichen
+
+1. Alle Änderungen committen und pushen. Gebaut wird der Stand des Tags.
+2. Auf GitHub ein Release mit einem Tag wie `v2.0.0` veröffentlichen.
+
+Der Workflow `.github/workflows/release.yml` baut und testet dann und hängt
+`DataClean-Setup-<Version>.exe` und `DataClean-<Version>.zip` an das Release. Die
+Version kommt aus dem Tag.
+
+Ohne Release lässt er sich unter **Actions → Release → Run workflow** als Probelauf
+starten. Die Dateien liegen danach als Build-Artefakt am Lauf.
+
+Die Exe auf NETLOGON aktualisiert der Workflow nicht. Sie wird weiter von Hand
+kopiert; dafür enthält das ZIP die nötigen Dateien.
+
+## Voraussetzungen zum lokalen Bauen
 
 - Visual Studio 2022/2026 oder die Build Tools mit MSBuild
 - Die Komponente ".NET Framework 4.8 SDK/Targeting Pack"
+- Für den Installer: Inno Setup 6.3 oder neuer
 
-## Paket erstellen
+## Pakete lokal erstellen
 
 ```powershell
 # Aus dem Projektstamm ausführen:
-./packaging/build-package.ps1
+./packaging/build-package.ps1 -RunTests -Installer
 ```
 
-Optional kann eine Version mitgegeben werden:
-
-```powershell
-./packaging/build-package.ps1 -Version 1.2.0
-```
-
-Das Ergebnis liegt anschließend unter `artifacts/DataClean-<Version>.zip` und
-enthält die `DataClean.exe`, die `DataClean.exe.config` sowie alle benötigten
-Begleitdateien aus dem Release-Ausgabeverzeichnis.
+Ohne `-Version` gilt die Version aus `Properties/AssemblyInfo.cs`. Das Ergebnis liegt
+unter `artifacts/`. Das ZIP enthält die `DataClean.exe`, die `DataClean.exe.config`
+und die Lizenz.
 
 ## Installation beim Endanwender
 
-1. ZIP in einen Ordner entpacken (z. B. `%ProgramFiles%\DataClean`).
-2. `DataClean.exe` starten. Einstellungen und Profile werden benutzerbezogen
-   unter `%APPDATA%\DataClean` bzw. `%LOCALAPPDATA%\DataClean` abgelegt.
-3. Für den automatischen Betrieb kann in den Einstellungen die tägliche
-   Ausführung aktiviert werden (legt eine geplante Aufgabe an).
+Der Installer legt DataClean unter `%ProgramFiles%\DataClean` ab, trägt es ins
+Startmenü ein und prüft, ob das .NET Framework 4.8 vorhanden ist. Beim ZIP genügt es,
+den Inhalt in einen Ordner zu entpacken.
+
+Einstellungen und Profile werden benutzerbezogen unter `%APPDATA%\DataClean` bzw.
+`%LOCALAPPDATA%\DataClean` abgelegt.
+
+- **Update:** Ein neuer Installer ersetzt die alte Version und übernimmt die
+  Benutzereinstellungen. Die `DataClean.exe.config` wird dabei ersetzt, Änderungen
+  von Hand darin gehen also verloren.
+- **Anderer Speicherort:** Windows trennt die Benutzereinstellungen nach dem Pfad der
+  Exe. Wer von NETLOGON auf die installierte Exe wechselt, beginnt mit den
+  Standardwerten.
+- **Geplante Aufgaben:** Der Installer legt keine an und entfernt keine, auch nicht
+  beim Deinstallieren. Die tägliche Ausführung wird in den Einstellungen aktiviert
+  und sollte dort vor dem Deinstallieren wieder abgeschaltet werden.
 
 ## Kommandozeilenoptionen
 

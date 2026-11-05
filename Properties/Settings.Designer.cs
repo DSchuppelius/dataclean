@@ -400,6 +400,18 @@ namespace DataClean.Properties {
 
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool settingsUpgradeRequired {
+            get {
+                return ((bool)(this["settingsUpgradeRequired"]));
+            }
+            set {
+                this["settingsUpgradeRequired"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool generateReport {
             get {

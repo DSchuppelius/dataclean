@@ -107,6 +107,9 @@
     <Setting Name="themeOverride" Type="System.String" Scope="User">
       <Value Profile="(Default)">System</Value>
     </Setting>
+    <Setting Name="settingsUpgradeRequired" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
     <Setting Name="generateReport" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
