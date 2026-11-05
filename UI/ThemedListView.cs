@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace DataClean.UI {
@@ -22,9 +23,13 @@ namespace DataClean.UI {
     /// </summary>
     public class ThemedListView : ListView, IThemedControl {
         private const int RowHeight = 26;
+        private const int CheckBoxSize = 16;
+        private const int CheckBoxLeft = 4;
+        private const int CheckBoxColumnWidth = 28;
         private const int WM_PAINT = 0x000F;
         private const int WM_NCCALCSIZE = 0x0083;
         private const int LVM_GETHEADER = 0x101F;
+        private const int LVM_GETTOOLTIPS = 0x104E;
         private readonly ImageList rowHeightList;
         private int statusColumn = -1;
         private int pathColumn = -1;
@@ -114,7 +119,17 @@ namespace DataClean.UI {
         protected override void OnHandleCreated(EventArgs e) {
             base.OnHandleCreated(e);
             AppTheme.ApplyNativeTheme(this);
+            KeepToolTipOnTop();
             FitColumns();
+        }
+
+        // Das Hauptfenster steht immer im Vordergrund, der Tooltip der Liste läge sonst dahinter.
+        private void KeepToolTipOnTop() {
+            IntPtr toolTip = NativeMethods.SendMessage(Handle, LVM_GETTOOLTIPS, IntPtr.Zero, IntPtr.Zero);
+            if (toolTip != IntPtr.Zero) {
+                NativeMethods.SetWindowPos(toolTip, NativeMethods.HWND_TOPMOST, 0, 0, 0, 0,
+                    NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOACTIVATE);
+            }
         }
 
         protected override void OnClientSizeChanged(EventArgs e) {
@@ -161,7 +176,7 @@ namespace DataClean.UI {
                 e.Graphics.DrawLine(pen, e.Bounds.X, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
             }
 
-            int inset = e.ColumnIndex == 0 ? 0 : 10;
+            int inset = e.ColumnIndex == 0 ? (CheckBoxes ? CheckBoxColumnWidth : 0) : 10;
             int gap = e.Header.TextAlign == HorizontalAlignment.Right ? 0 : 10;
             var text = new Rectangle(e.Bounds.X + inset, e.Bounds.Y, Math.Max(0, e.Bounds.Width - inset - gap), e.Bounds.Height);
             TextRenderer.DrawText(e.Graphics, e.Header.Text, Font, text, AppTheme.SubtleText, CellFlags(e.Header.TextAlign, false));
@@ -186,6 +201,15 @@ namespace DataClean.UI {
 
             Color fore = AppTheme.Text;
             int left = cell.X + (e.ColumnIndex == 0 ? 0 : 10);
+
+            if (CheckBoxes && e.ColumnIndex == 0) {
+                var box = new Rectangle(cell.X + CheckBoxLeft, cell.Y + (cell.Height - CheckBoxSize) / 2, CheckBoxSize - 1, CheckBoxSize - 1);
+                SmoothingMode smoothing = e.Graphics.SmoothingMode;
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                ThemedCheckBox.PaintBox(e.Graphics, box, e.Item.Checked, Enabled, false);
+                e.Graphics.SmoothingMode = smoothing;
+                left += CheckBoxColumnWidth;
+            }
 
             if (e.ColumnIndex == statusColumn && e.Item.Tag is StatusKind status && status != StatusKind.None) {
                 fore = ColorFor(status);
@@ -252,6 +276,14 @@ namespace DataClean.UI {
             IntPtr header = NativeMethods.SendMessage(Handle, LVM_GETHEADER, IntPtr.Zero, IntPtr.Zero);
             NativeMethods.RECT rect;
             return header != IntPtr.Zero && NativeMethods.GetWindowRect(header, out rect) ? rect.Bottom - rect.Top : 0;
+        }
+
+        protected override void OnItemChecked(ItemCheckedEventArgs e) {
+            base.OnItemChecked(e);
+            // Selbst gezeichnete Zeilen malt die ListView beim Umschalten nicht von allein neu.
+            if (IsHandleCreated && e.Item.ListView == this) {
+                InvalidateRow(e.Item.Index);
+            }
         }
 
         protected override void OnMouseMove(MouseEventArgs e) {

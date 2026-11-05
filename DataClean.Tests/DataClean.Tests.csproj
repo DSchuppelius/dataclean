@@ -47,6 +47,8 @@
     <Compile Include="SpecialFolderResolverTests.cs" />
     <Compile Include="StartupContextTests.cs" />
     <Compile Include="ThemeModeTests.cs" />
+    <Compile Include="RegistryCommandLineTests.cs" />
+    <Compile Include="RegistryCleanerTests.cs" />
     <Compile Include="SizeEstimatorTests.cs" />
     <Compile Include="SecureSettingsTests.cs" />
   </ItemGroup>

@@ -40,6 +40,16 @@ namespace DataClean {
         internal const int WM_NCLBUTTONDOWN = 0xA1;
         internal const int HT_CAPTION = 0x2;
 
+        // Ändert die Stapelreihenfolge eines Fensters, ohne es zu bewegen oder zu aktivieren.
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+
+        internal static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+        internal const uint SWP_NOSIZE = 0x0001;
+        internal const uint SWP_NOMOVE = 0x0002;
+        internal const uint SWP_NOACTIVATE = 0x0010;
+
         // Zeichnen des Fensterrahmens für themenkonforme Eingabefelder.
         [DllImport("user32.dll")]
         internal static extern IntPtr GetWindowDC(IntPtr hWnd);

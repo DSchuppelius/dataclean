@@ -90,7 +90,8 @@ namespace DataClean.UI {
             if (!Enabled) {
                 fill = AppTheme.Secondary;
                 border = Color.FromArgb(120, AppTheme.InputBorder);
-                fore = Color.FromArgb(120, AppTheme.Text);
+                // TextRenderer ignoriert Transparenz, die Farbe muss daher deckend gemischt sein.
+                fore = AppTheme.Blend(AppTheme.Text, fill, 0.45f);
             }
 
             Color background = Enabled && (hovering || pressed) ? hover : fill;
@@ -141,6 +142,33 @@ namespace DataClean.UI {
             return new Size(BoxSize + TextGap + text.Width + 2, Math.Max(22, text.Height + 4));
         }
 
+        /// <summary>Zeichnet das Kästchen; auch die Zeilen einer Tabelle verwenden es.</summary>
+        internal static void PaintBox(Graphics g, Rectangle box, bool isChecked, bool enabled, bool hovering) {
+            Color accent = enabled ? AppTheme.Accent : Color.FromArgb(110, AppTheme.Accent);
+            Color border = isChecked || (hovering && enabled) ? accent : AppTheme.InputBorder;
+
+            using (var path = AppTheme.RoundedPath(box, 2))
+            using (var brush = new SolidBrush(isChecked ? accent : AppTheme.SurfaceAlt))
+            using (var pen = new Pen(border)) {
+                g.FillPath(brush, path);
+                g.DrawPath(pen, path);
+            }
+
+            if (isChecked) {
+                using (var pen = new Pen(AppTheme.OnAccent, 2f) {
+                    StartCap = LineCap.Round,
+                    EndCap = LineCap.Round,
+                    LineJoin = LineJoin.Round
+                }) {
+                    g.DrawLines(pen, new[] {
+                        new PointF(box.X + 3.6f, box.Y + 8f),
+                        new PointF(box.X + 6.6f, box.Y + 11f),
+                        new PointF(box.X + 11.8f, box.Y + 4.8f)
+                    });
+                }
+            }
+        }
+
         protected override void OnMouseEnter(EventArgs e) {
             hovering = true;
             Invalidate();
@@ -164,29 +192,7 @@ namespace DataClean.UI {
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
             var box = new Rectangle(0, (Height - BoxSize) / 2, BoxSize - 1, BoxSize - 1);
-            Color accent = Enabled ? AppTheme.Accent : Color.FromArgb(110, AppTheme.Accent);
-            Color border = Checked || (hovering && Enabled) ? accent : AppTheme.InputBorder;
-
-            using (var path = AppTheme.RoundedPath(box, 2))
-            using (var brush = new SolidBrush(Checked ? accent : AppTheme.SurfaceAlt))
-            using (var pen = new Pen(border)) {
-                g.FillPath(brush, path);
-                g.DrawPath(pen, path);
-            }
-
-            if (Checked) {
-                using (var pen = new Pen(AppTheme.OnAccent, 2f) {
-                    StartCap = LineCap.Round,
-                    EndCap = LineCap.Round,
-                    LineJoin = LineJoin.Round
-                }) {
-                    g.DrawLines(pen, new[] {
-                        new PointF(box.X + 3.6f, box.Y + 8f),
-                        new PointF(box.X + 6.6f, box.Y + 11f),
-                        new PointF(box.X + 11.8f, box.Y + 4.8f)
-                    });
-                }
-            }
+            PaintBox(g, box, Checked, Enabled, hovering);
 
             Color fore = Enabled ? AppTheme.Text : Color.FromArgb(130, AppTheme.SubtleText);
             var textBounds = new Rectangle(BoxSize + TextGap, 0, Math.Max(0, Width - BoxSize - TextGap), Height);

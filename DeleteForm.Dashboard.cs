@@ -14,6 +14,7 @@ namespace DataClean {
         private enum Page {
             Overview,
             Cleanup,
+            Registry,
             Log,
             Settings
         }
@@ -49,6 +50,7 @@ namespace DataClean {
         private Timer dashboardTimer;
         private UI.NavItem navOverview;
         private UI.NavItem navCleanup;
+        private UI.NavItem navRegistry;
         private UI.NavItem navLog;
         private UI.NavItem navSettings;
         private Page currentPage = Page.Overview;
@@ -113,6 +115,8 @@ namespace DataClean {
             dashboardTimer = new Timer(components) { Interval = DashboardRefreshMs };
             dashboardTimer.Tick += (s, e) => RefreshDashboard();
 
+            registryPage.LogMessage += LogToDetailTextBox;
+
             settingsPage.Saved += (s, e) => {
                 // Das Design kann geändert worden sein – geöffnete Seiten direkt anpassen.
                 ReapplyTheme();
@@ -166,6 +170,7 @@ namespace DataClean {
             base.OnLoad(e);
             navOverview = AddNavItem(UI.IconKind.Home, "Übersicht", (s, ev) => ShowPage(Page.Overview));
             navCleanup = AddNavItem(UI.IconKind.Trash, "Bereinigung", (s, ev) => ShowPage(Page.Cleanup));
+            navRegistry = AddNavItem(UI.IconKind.Registry, "Registry", (s, ev) => ShowPage(Page.Registry));
             navLog = AddNavItem(UI.IconKind.Document, "Protokoll", (s, ev) => ShowPage(Page.Log));
             navSettings = AddNavItem(UI.IconKind.Gear, "Einstellungen", (s, ev) => ShowPage(Page.Settings));
 
@@ -185,6 +190,7 @@ namespace DataClean {
         private UI.NavItem NavItemFor(Page page) {
             switch (page) {
                 case Page.Cleanup: return navCleanup;
+                case Page.Registry: return navRegistry;
                 case Page.Log: return navLog;
                 case Page.Settings: return navSettings;
                 default: return navOverview;
@@ -205,9 +211,13 @@ namespace DataClean {
             if (page == Page.Settings) {
                 settingsPage.EnsureLoaded();
             }
+            if (page == Page.Registry) {
+                registryPage.PreviewOnly = dryRun;
+            }
 
             overviewPage.Visible = page == Page.Overview;
             cleanupPage.Visible = page == Page.Cleanup;
+            registryPage.Visible = page == Page.Registry;
             logPage.Visible = page == Page.Log;
             settingsPage.Visible = page == Page.Settings;
             SelectNavItem(NavItemFor(page));

@@ -169,6 +169,14 @@ namespace DataClean.UI {
             }
         }
 
+        /// <summary>Mischt zwei Farben deckend; <paramref name="amount"/> ist der Anteil von <paramref name="color"/>.</summary>
+        public static Color Blend(Color color, Color background, float amount) {
+            return Color.FromArgb(
+                (int)(color.R * amount + background.R * (1f - amount)),
+                (int)(color.G * amount + background.G * (1f - amount)),
+                (int)(color.B * amount + background.B * (1f - amount)));
+        }
+
         /// <summary>Erster deckender Hintergrund in der Eltern-Kette eines Controls.</summary>
         public static Color EffectiveBack(Control control) {
             for (Control parent = control?.Parent; parent != null; parent = parent.Parent) {

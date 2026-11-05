@@ -25,7 +25,8 @@ namespace DataClean.UI {
         ChevronUp,
         Folder,
         Clock,
-        Dot
+        Dot,
+        Registry
     }
 
     /// <summary>
@@ -154,6 +155,14 @@ namespace DataClean.UI {
                     break;
                 case IconKind.Dot:
                     g.FillEllipse(brush, 8f, 8f, 8f, 8f);
+                    break;
+                case IconKind.Registry:
+                    // Schlüsselbaum: oben der Stamm, darunter zwei Zweige.
+                    g.DrawRectangle(pen, 3f, 3f, 8f, 5.5f);
+                    Polyline(g, pen, P(7f, 8.5f), P(7f, 18.5f), P(12f, 18.5f));
+                    g.DrawLine(pen, 7f, 12.5f, 12f, 12.5f);
+                    g.DrawRectangle(pen, 12f, 10f, 9f, 5f);
+                    g.DrawRectangle(pen, 12f, 16f, 9f, 5f);
                     break;
             }
         }

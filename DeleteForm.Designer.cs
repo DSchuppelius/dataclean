@@ -73,6 +73,7 @@
             this.historyButton = new DataClean.UI.ThemedButton();
             this.detailTextBox = new DataClean.UI.ThemedTextBox();
             this.settingsPage = new DataClean.SettingsPage();
+            this.registryPage = new DataClean.RegistryPage();
             this.footerPanel = new System.Windows.Forms.Panel();
             this.footerFlow = new System.Windows.Forms.FlowLayoutPanel();
             this.label3 = new System.Windows.Forms.Label();
@@ -686,7 +687,17 @@
             this.settingsPage.Size = new System.Drawing.Size(802, 633);
             this.settingsPage.TabIndex = 4;
             this.settingsPage.Visible = false;
-            // 
+            //
+            // registryPage
+            //
+            this.registryPage.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.registryPage.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.registryPage.Location = new System.Drawing.Point(0, 0);
+            this.registryPage.Name = "registryPage";
+            this.registryPage.Size = new System.Drawing.Size(802, 633);
+            this.registryPage.TabIndex = 5;
+            this.registryPage.Visible = false;
+            //
             // footerPanel
             // 
             this.footerPanel.Controls.Add(this.footerFlow);
@@ -775,6 +786,7 @@
             this.Controls.Add(this.cleanupPage);
             this.Controls.Add(this.logPage);
             this.Controls.Add(this.settingsPage);
+            this.Controls.Add(this.registryPage);
             this.Controls.Add(this.footerPanel);
             this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
@@ -852,6 +864,7 @@
         private DataClean.UI.ThemedButton historyButton;
         private DataClean.UI.ThemedTextBox detailTextBox; // Ausführliches Laufprotokoll
         private DataClean.SettingsPage settingsPage;
+        private DataClean.RegistryPage registryPage;
         private System.Windows.Forms.Panel footerPanel;
         private System.Windows.Forms.FlowLayoutPanel footerFlow;
         private System.Windows.Forms.Label label3;
