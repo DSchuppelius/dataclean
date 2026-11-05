@@ -200,7 +200,7 @@ namespace DataClean {
             }
         }
 
-        // Das Fenster schließt sich meist von selbst; das Log bleibt als Nachweis erhalten.
+        // Im Autostart schließt sich das Fenster meist von selbst; das Log bleibt als Nachweis erhalten.
         private void ReportDismProblem(string message) {
             LogToDetailTextBox(message);
             Services.Logger.Warn(message, "DISM");

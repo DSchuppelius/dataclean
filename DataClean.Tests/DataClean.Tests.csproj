@@ -46,6 +46,7 @@
     <Compile Include="ReportBuilderTests.cs" />
     <Compile Include="SpecialFolderResolverTests.cs" />
     <Compile Include="StartupContextTests.cs" />
+    <Compile Include="ThemeModeTests.cs" />
     <Compile Include="SizeEstimatorTests.cs" />
     <Compile Include="SecureSettingsTests.cs" />
   </ItemGroup>

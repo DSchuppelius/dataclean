@@ -68,7 +68,7 @@ namespace DataClean {
         private int deletedItemCount = 0;
         private int skippedItemCount = 0;
         private int failedItemCount = 0;
-        private readonly DateTime runStartTime = DateTime.Now;
+        private DateTime runStartTime = DateTime.Now;
         private readonly List<string> performedTasks = new List<string>();
 
         // Drosselung der UI-Updates im Lösch-Hotpath, um blockierende Invoke-Aufrufe
@@ -79,8 +79,9 @@ namespace DataClean {
         private readonly System.Text.StringBuilder detailLogBuffer = new System.Text.StringBuilder();
         private readonly object detailLogLock = new object();
 
-        // Wird beim unbeaufsichtigten Autostart (geplante Aufgabe) gesetzt und überspringt
-        // interaktive Rückfragen wie die Größen-Vorschau-Bestätigung.
+        // Wird beim unbeaufsichtigten Autostart (geplante Aufgabe) gesetzt: Der Lauf beginnt sofort,
+        // ohne Rückfrage, und das Fenster schließt sich danach selbst. Von Hand gestartet wartet die
+        // Anwendung dagegen auf den Start und bleibt nach dem Lauf offen.
         private readonly bool unattended;
 
         public DeleteForm() : this(false) {
@@ -99,6 +100,26 @@ namespace DataClean {
             LoadDirectoriesFromConfig(Properties.Settings.Default.protectedDirectories, protectedDirectories);
             LoadDirectoriesFromConfig(Properties.Settings.Default.allowedSubdirectories, allowedSubdirectories);
 
+            LoadOptions();
+
+            this.EnableSidebar = true;
+            this.EnableMaximizeButton = true;
+            this.AllowResize = true;
+            this.ResizeMinimum = new Size(880, 640);
+            this.CaptionSubtitle = "Temporäre Dateien bereinigen";
+
+            InitializeComponent();
+
+            InitializeDashboard();
+
+            SetupTrayMenu();
+
+            this.FormClosing += DeleteForm_FormClosing;
+            this.Resize += DeleteForm_Resize;
+        }
+
+        // Liest die Einstellungen ein. Jeder Lauf arbeitet mit dem zuletzt gespeicherten Stand.
+        private void LoadOptions() {
             var options = CleanupOptions.FromSettings();
 
             this.emptyTrash = options.EmptyTrash;
@@ -131,21 +152,6 @@ namespace DataClean {
                     .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries));
             this.skipIfEnoughFreeSpace = options.SkipIfEnoughFreeSpace;
             this.schedulePendingDeletes = options.SchedulePendingDeletes;
-
-            this.EnableSidebar = true;
-            this.EnableMaximizeButton = true;
-            this.AllowResize = true;
-            this.ResizeMinimum = new Size(880, 640);
-            this.CaptionSubtitle = "Temporäre Dateien bereinigen";
-
-            InitializeComponent();
-
-            InitializeDashboard();
-
-            SetupTrayMenu();
-
-            this.FormClosing += DeleteForm_FormClosing;
-            this.Resize += DeleteForm_Resize;
         }
 
         // Richtet das Kontextmenü des Infobereich-Symbols ein und aktiviert
@@ -207,17 +213,57 @@ namespace DataClean {
         }
 
         private void DeleteForm_Shown(object sender, EventArgs e) {
-            // Interaktiv mit Fokus starten; unbeaufsichtigte Läufe nehmen keinen Fokus.
-            if (!unattended) {
+            // Unbeaufsichtigte Läufe beginnen sofort und nehmen keinen Fokus. Von Hand gestartet
+            // steht das Fenster bereits im Zustand "Bereit" (siehe OnLoad); gelöscht wird noch nichts.
+            if (unattended) {
+                StartRun();
+            } else {
                 Activate();
             }
+        }
 
+        // Startet einen Lauf mit den zuletzt gespeicherten Einstellungen.
+        private void StartRun() {
+            waitingForStart = false;
+            ResetRunState();
+            LoadOptions();
             LoadConfiguration();
             StartCleanup();
 
             if (healthCheckEnabled) {
                 healthCheckTask = Task.Run(() => RunHealthCheck());
             }
+        }
+
+        // Verwirft alles, was ein Lauf gesammelt hat, damit sich Ergebnisse nicht addieren.
+        private void ResetRunState() {
+            freedBytes = 0;
+            deletedItemCount = 0;
+            skippedItemCount = 0;
+            failedItemCount = 0;
+            totalPhases = 0;
+            currentPhase = 0;
+            pendingProgressSteps = 0;
+            runStartTime = DateTime.Now;
+            performedTasks.Clear();
+            reportWritten = false;
+            runHistoryRecorded = false;
+            pendingHealthIssues = null;
+            severeHealthIssueDetected = false;
+            healthCheckTask = null;
+            lastDismPercent = -1d;
+            lock (dismOutputTail) {
+                dismOutputTail.Clear();
+            }
+            lock (detailLogLock) {
+                detailLogBuffer.Clear();
+            }
+            detailTextBox.Clear();
+            lock (activityLock) {
+                pendingActivity.Clear();
+            }
+            activityEntries.Clear();
+            visibleActivity.Clear();
         }
 
         private void StartCleanup() {
@@ -379,7 +425,7 @@ namespace DataClean {
         }
 
         private void NotifyHealthIssues(List<HealthIssue> issues) {
-            // Das Fenster schließt sich meist von selbst, das Protokoll bleibt als Nachweis.
+            // Im Autostart schließt sich das Fenster meist von selbst, das Protokoll bleibt als Nachweis.
             foreach (HealthIssue issue in issues) {
                 Services.Logger.Warn($"Systemprüfung: {issue}", "DeleteForm");
             }
@@ -628,7 +674,7 @@ namespace DataClean {
                         ShowFinishedState("Bereinigung übersprungen");
                         UpdateStatusLabel(label1, $"Genügend freier Speicher (> {minFreeDiskPercent} %).", themeSuccess);
                     }));
-                    await CloseWhenIdleAsync(unattended ? 0 : AutoCloseDelayMs);
+                    await CloseIfUnattendedAsync(0);
                     return;
                 }
 
@@ -641,10 +687,9 @@ namespace DataClean {
                     // unbeaufsichtigten Modus oder wenn sie per Einstellung
                     // (confirmBeforeDelete) deaktiviert wurde.
                     if (!unattended && confirmBeforeDelete && !await ConfirmSizePreview(cancellationToken)) {
-                        LogToDetailTextBox("=== Bereinigung durch Benutzer abgebrochen (Vorschau) ===");
-                        // Der Benutzer hat das Löschen abgelehnt, bevor etwas passiert ist –
-                        // die Anwendung kann direkt geschlossen werden.
-                        CloseApplication();
+                        // Der Benutzer hat das Löschen abgelehnt, bevor etwas passiert ist:
+                        // zurück zu "Bereit", damit sich zum Beispiel die Einstellungen anpassen lassen.
+                        Invoke(new Action(ShowReadyState));
                         return;
                     }
                 }
@@ -1192,11 +1237,10 @@ namespace DataClean {
                     ? "Mit Fehlern abgeschlossen"
                     : (dryRun ? "Vorschau abgeschlossen" : "Bereinigung abgeschlossen"));
                 ShowHealthWarnings();
-                UpdateStatusLabel(label1, dryRun
-                    ? "Es wurde nichts gelöscht. Das Fenster schließt sich automatisch."
-                    : (withErrors
-                        ? "Einige Elemente konnten nicht gelöscht werden. Das Fenster schließt sich automatisch."
-                        : "Das Fenster schließt sich automatisch."), themeStatusText);
+                string outcome = dryRun
+                    ? "Es wurde nichts gelöscht."
+                    : (withErrors ? "Einige Elemente konnten nicht gelöscht werden." : "Alle Aufgaben wurden erledigt.");
+                UpdateStatusLabel(label1, unattended ? outcome + " Das Fenster schließt sich automatisch." : outcome, themeStatusText);
             }));
 
             await Task.Delay(ResultVisibleMs);
@@ -1211,8 +1255,7 @@ namespace DataClean {
                 return; // Kein automatisches Schließen bei schwerem Fehler.
             }
 
-            // Ohne besondere Vorkommnisse schließt sich die Anwendung von selbst.
-            await CloseWhenIdleAsync(AutoCloseDelayMs - ResultVisibleMs);
+            await CloseIfUnattendedAsync(AutoCloseDelayMs - ResultVisibleMs);
         }
 
         // Abschlusslogik nach einem vom Benutzer ausgelösten Abbruch.
@@ -1230,7 +1273,7 @@ namespace DataClean {
                 UpdateStatusLabel(label1, $"Nicht alle Bereiche wurden bereinigt. Freigegebener Speicher: {FormatBytes(freedBytes)}", themeError);
             }));
 
-            await CloseWhenIdleAsync(AutoCloseDelayMs);
+            await CloseIfUnattendedAsync(AutoCloseDelayMs);
         }
 
         // Schreibt die Lauf-Historie (einmalig pro Lauf) in den persistenten Speicher.
@@ -1390,7 +1433,7 @@ namespace DataClean {
                     UI.AppDialog.Show(this, $"Fehler beim Neustarten mit Admin-Rechten: {ex.Message}", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             } else {
-                StartCleanup();
+                StartRun();
             }
         }
 

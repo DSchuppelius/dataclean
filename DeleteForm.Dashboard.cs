@@ -74,6 +74,9 @@ namespace DataClean {
         private double busyPercent = -1d;
         private string defaultStatusText;
 
+        // Von Hand gestartet: Das Fenster wartet auf den Start, es läuft noch nichts.
+        private bool waitingForStart;
+
         // Farben der Statuszeile unter der Überschrift.
         private Color themeStatusText;
         private Color themeSuccess;
@@ -103,18 +106,30 @@ namespace DataClean {
             }
             activityFilterCombo.SelectedIndex = 0;
 
-            if (dryRun) {
-                heroLabel.Text = "0 B freigebbar";
-                statDeleted.Caption = "Würden gelöscht";
-                activityFilterCombo.Items[1] = "Vorschau";
-            }
+            ApplyRunModeTexts();
+            heroLabel.Text = HeroText;
             headerTitleLabel.Text = RunningTitle;
 
             dashboardTimer = new Timer(components) { Interval = DashboardRefreshMs };
             dashboardTimer.Tick += (s, e) => RefreshDashboard();
 
-            // Das Design kann geändert worden sein – geöffnete Seiten direkt anpassen.
-            settingsPage.Saved += (s, e) => ReapplyTheme();
+            settingsPage.Saved += (s, e) => {
+                // Das Design kann geändert worden sein – geöffnete Seiten direkt anpassen.
+                ReapplyTheme();
+                // Wartet die Anwendung auf den Start, zeigt sie, was dieser jetzt tun würde.
+                if (waitingForStart) {
+                    ShowReadyState();
+                }
+            };
+        }
+
+        private void ApplyRunModeTexts() {
+            statDeleted.Caption = dryRun ? "Würden gelöscht" : "Elemente gelöscht";
+            activityFilterCombo.Items[1] = dryRun ? "Vorschau" : "Gelöscht";
+        }
+
+        private string HeroText {
+            get { return FormatBytes(System.Threading.Interlocked.Read(ref freedBytes)) + (dryRun ? " freigebbar" : " freigegeben"); }
         }
 
         private void ApplyStatusColors() {
@@ -125,6 +140,26 @@ namespace DataClean {
 
         protected override void OnThemeReapplied() {
             ApplyStatusColors();
+        }
+
+        // Die Palette setzt alle Beschriftungen auf ihre Grundfarbe; Erfolg und Fehler sollen bleiben.
+        public override void ReapplyTheme() {
+            Color title = headerTitleLabel.ForeColor;
+            Color status = label1.ForeColor;
+            Color oldSuccess = themeSuccess;
+            Color oldError = themeError;
+
+            base.ReapplyTheme();
+
+            headerTitleLabel.ForeColor = StateColorAfterThemeChange(title, oldSuccess, oldError, UI.AppTheme.Link);
+            label1.ForeColor = StateColorAfterThemeChange(status, oldSuccess, oldError, themeStatusText);
+        }
+
+        private Color StateColorAfterThemeChange(Color before, Color oldSuccess, Color oldError, Color neutral) {
+            if (before == oldSuccess) {
+                return themeSuccess;
+            }
+            return before == oldError ? themeError : neutral;
         }
 
         protected override void OnLoad(EventArgs e) {
@@ -140,6 +175,11 @@ namespace DataClean {
 
             ShowPage(Page.Overview);
             CenterToScreen();
+
+            // Schon vor dem ersten Zeichnen, damit nicht kurz "Bereinigung läuft" zu sehen ist.
+            if (!unattended) {
+                ShowReadyState();
+            }
         }
 
         private UI.NavItem NavItemFor(Page page) {
@@ -228,9 +268,15 @@ namespace DataClean {
             }
         }
 
-        // Schließt die Anwendung, sobald sie die angegebene Zeit unbenutzt war. Wer Details oder
-        // eine andere Seite offen hat, liest in Ruhe; danach läuft die Wartezeit neu an.
-        private async Task CloseWhenIdleAsync(int idleMs) {
+        // Nur der unbeaufsichtigte Lauf schließt sich selbst: Wer die Anwendung von Hand startet und
+        // das Löschen bestätigt, beendet sie auch selbst. Unbeaufsichtigt schließt sie, sobald sie die
+        // angegebene Zeit unbenutzt war. Wer Details oder eine andere Seite offen hat, liest in Ruhe;
+        // danach läuft die Wartezeit neu an.
+        private async Task CloseIfUnattendedAsync(int idleMs) {
+            if (!unattended) {
+                return;
+            }
+
             int idle = 0;
             while (idle < idleMs || StayOpenAfterRun) {
                 await Task.Delay(IdlePollMs);
@@ -280,6 +326,10 @@ namespace DataClean {
             ExitApplication();
         }
 
+        private void StartButton_Click(object sender, EventArgs e) {
+            StartRun();
+        }
+
         private void PauseButton_Click(object sender, EventArgs e) {
             isPaused = !isPaused;
             pauseButton.Text = isPaused ? "Fortsetzen" : "Pausieren";
@@ -296,18 +346,68 @@ namespace DataClean {
             }
         }
 
-        // Setzt die Anzeige zu Beginn eines Laufs zurück und startet die periodische Aktualisierung.
-        private void PrepareDashboardForRun() {
+        // Setzt die Anzeige zurück, die ein vorheriger Lauf hinterlassen haben kann.
+        private void ResetDashboard() {
             isPaused = false;
             overallFraction = 0d;
             directoriesDone = 0;
             directoriesTotal = cleaningDirectories?.Count ?? 0;
 
-            headerTitleLabel.Text = RunningTitle;
+            ClearBusyStep();
+            ApplyRunModeTexts();
             headerTitleLabel.ForeColor = UI.AppTheme.Link;
+            heroLabel.Text = HeroText;
+            label1.ForeColor = themeStatusText;
+            statRuntime.Value = "00:00";
+            statDeleted.Value = "0";
+            statSkipped.Value = "0";
+            infoLine.Visible = false;
             progressBar1.Value = 0;
             SetOverallProgress(0d);
             phaseLabel.Text = string.Empty;
+            directoryValueLabel.Text = string.Empty;
+
+            UpdateActivityList();
+            PopulateRunTables();
+        }
+
+        // Von Hand gestartet wartet die Anwendung hier auf den Start. Noch ist nichts passiert,
+        // die Einstellungen lassen sich also anpassen, ohne dass etwas gelöscht wird.
+        private void ShowReadyState() {
+            dashboardTimer.Stop();
+            ResetRunState();
+            LoadOptions();
+            LoadConfiguration();
+            ResetDashboard();
+            waitingForStart = true;
+
+            int count = cleaningDirectories.Count;
+            headerTitleLabel.Text = dryRun ? "Vorschau bereit" : "Bereit";
+            heroLabel.Text = count == 1 ? "1 Verzeichnis ausgewählt" : $"{count} Verzeichnisse ausgewählt";
+            label1.Text = dryRun
+                ? "Vorschau-Modus – es wird nichts gelöscht."
+                : "Noch wurde nichts gelöscht. Passen Sie bei Bedarf die Einstellungen an und starten Sie dann die Bereinigung.";
+            label2.Text = "Geplante Schritte";
+            directoryValueLabel.Text = string.Join(", ", GetEnabledPhaseNames());
+
+            pauseButton.Visible = false;
+            cancelButton.Visible = false;
+            retryButton.Visible = false;
+            startButton.Text = dryRun ? "Vorschau starten" : "Bereinigung starten";
+            startButton.Kind = UI.ButtonKind.Primary;
+            startButton.Visible = true;
+            finishButton.Kind = UI.ButtonKind.Secondary;
+            finishButton.Visible = true;
+            // Die Leiste füllt sich von rechts: Ganz rechts steht die Hauptaktion.
+            actionsPanel.Controls.SetChildIndex(startButton, 0);
+        }
+
+        // Setzt die Anzeige zu Beginn eines Laufs zurück und startet die periodische Aktualisierung.
+        private void PrepareDashboardForRun() {
+            ResetDashboard();
+
+            headerTitleLabel.Text = RunningTitle;
+            label1.Text = defaultStatusText;
 
             pauseButton.Text = "Pausieren";
             pauseButton.Icon = UI.IconKind.Pause;
@@ -315,10 +415,10 @@ namespace DataClean {
             pauseButton.Visible = true;
             cancelButton.Enabled = true;
             cancelButton.Visible = true;
+            startButton.Visible = false;
             finishButton.Visible = false;
             retryButton.Visible = false;
 
-            PopulateRunTables();
             dashboardTimer.Start();
         }
 
@@ -333,7 +433,13 @@ namespace DataClean {
             pauseButton.Visible = false;
             cancelButton.Visible = false;
             retryButton.Visible = !IsAdministrator();
+            // Von Hand gestartet bleibt das Fenster offen, geänderte Einstellungen lassen sich direkt nutzen.
+            startButton.Text = "Erneut starten";
+            startButton.Kind = UI.ButtonKind.Secondary;
+            startButton.Visible = !unattended;
+            finishButton.Kind = UI.ButtonKind.Primary;
             finishButton.Visible = true;
+            actionsPanel.Controls.SetChildIndex(finishButton, 0);
             RefreshDashboard();
         }
 
@@ -420,7 +526,7 @@ namespace DataClean {
                 label1.Text = $"Verzeichnis {Math.Min(directoriesDone + 1, directoriesTotal)} von {directoriesTotal}";
             }
 
-            heroLabel.Text = FormatBytes(System.Threading.Interlocked.Read(ref freedBytes)) + (dryRun ? " freigebbar" : " freigegeben");
+            heroLabel.Text = HeroText;
             TimeSpan runtime = DateTime.Now - runStartTime;
             statRuntime.Value = $"{(int)runtime.TotalMinutes:00}:{runtime.Seconds:00}";
             int deleted = System.Threading.Volatile.Read(ref deletedItemCount);

@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
 namespace DataClean.UI {
     /// <summary>
@@ -40,6 +41,7 @@ namespace DataClean.UI {
         private readonly List<NavItem> navItems = new List<NavItem>();
         private string captionSubtitle;
         private bool chromeBuilt;
+        private bool appliedDark;
 
         public FuturisticForm() {
             AppTheme.Refresh();
@@ -125,6 +127,22 @@ namespace DataClean.UI {
             base.OnHandleCreated(e);
             SetStyle(ControlStyles.ResizeRedraw, true);
             ApplyWindowFrame();
+            if (!DesignMode) {
+                SystemEvents.UserPreferenceChanged += SystemPreferenceChanged;
+            }
+        }
+
+        protected override void OnHandleDestroyed(EventArgs e) {
+            SystemEvents.UserPreferenceChanged -= SystemPreferenceChanged;
+            base.OnHandleDestroyed(e);
+        }
+
+        // Steht die Einstellung auf "System", folgt das Fenster einem Wechsel in Windows sofort.
+        // Das Ereignis kommt auch bei vielen anderen Änderungen, daher der Vergleich.
+        private void SystemPreferenceChanged(object sender, UserPreferenceChangedEventArgs e) {
+            if (e.Category == UserPreferenceCategory.General && chromeBuilt && AppTheme.ResolveDark() != appliedDark) {
+                ReapplyTheme();
+            }
         }
 
         protected override void OnLoad(EventArgs e) {
@@ -372,6 +390,7 @@ namespace DataClean.UI {
         }
 
         private void UpdateChromeColors() {
+            appliedDark = AppTheme.IsDark;
             BackColor = AppTheme.Background;
             if (captionBar != null) {
                 captionBar.BackColor = AppTheme.Caption;
@@ -394,7 +413,7 @@ namespace DataClean.UI {
         }
 
         /// <summary>Wendet die aktuelle Palette erneut an, z. B. nach Änderung der Einstellungen.</summary>
-        public void ReapplyTheme() {
+        public virtual void ReapplyTheme() {
             AppTheme.Refresh();
             ApplyThemeRecursive(this);
             UpdateChromeColors();

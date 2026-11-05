@@ -28,7 +28,7 @@
     <InstallUrl>\\internal.daniel-schuppelius.de\Programme\Software\- Organisation -\DataClean\</InstallUrl>
     <WebPage>publish.htm</WebPage>
     <ApplicationRevision>9</ApplicationRevision>
-    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <ApplicationVersion>2.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
     <BootstrapperEnabled>true</BootstrapperEnabled>
@@ -123,6 +123,7 @@
     <Compile Include="Services\SizeEstimator.cs" />
     <Compile Include="Services\SpecialFolderResolver.cs" />
     <Compile Include="Services\StartupContext.cs" />
+    <Compile Include="Services\ThemeMode.cs" />
     <Compile Include="DeleteForm.Dashboard.cs">
       <DependentUpon>DeleteForm.cs</DependentUpon>
       <SubType>Form</SubType>

@@ -51,6 +51,7 @@
             this.detailsLink = new System.Windows.Forms.LinkLabel();
             this.actionsPanel = new System.Windows.Forms.FlowLayoutPanel();
             this.finishButton = new DataClean.UI.ThemedButton();
+            this.startButton = new DataClean.UI.ThemedButton();
             this.cancelButton = new DataClean.UI.ThemedButton();
             this.pauseButton = new DataClean.UI.ThemedButton();
             this.retryButton = new DataClean.UI.ThemedButton();
@@ -398,6 +399,7 @@
             this.actionsPanel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.actionsPanel.Controls.Add(this.finishButton);
+            this.actionsPanel.Controls.Add(this.startButton);
             this.actionsPanel.Controls.Add(this.cancelButton);
             this.actionsPanel.Controls.Add(this.pauseButton);
             this.actionsPanel.Controls.Add(this.retryButton);
@@ -422,6 +424,20 @@
             this.finishButton.UseVisualStyleBackColor = false;
             this.finishButton.Visible = false;
             this.finishButton.Click += new System.EventHandler(this.FinishButton_Click);
+            // 
+            // startButton
+            // 
+            this.startButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.startButton.Kind = DataClean.UI.ButtonKind.Primary;
+            this.startButton.Location = new System.Drawing.Point(343, 0);
+            this.startButton.Margin = new System.Windows.Forms.Padding(14, 0, 0, 0);
+            this.startButton.Name = "startButton";
+            this.startButton.Size = new System.Drawing.Size(150, 32);
+            this.startButton.TabIndex = 4;
+            this.startButton.Text = "Bereinigung starten";
+            this.startButton.UseVisualStyleBackColor = false;
+            this.startButton.Visible = false;
+            this.startButton.Click += new System.EventHandler(this.StartButton_Click);
             // 
             // cancelButton
             // 
@@ -814,6 +830,7 @@
         private System.Windows.Forms.LinkLabel detailsLink;
         private System.Windows.Forms.FlowLayoutPanel actionsPanel;
         private DataClean.UI.ThemedButton finishButton;
+        private DataClean.UI.ThemedButton startButton;
         private DataClean.UI.ThemedButton cancelButton;
         private DataClean.UI.ThemedButton pauseButton;
         private DataClean.UI.ThemedButton retryButton; // Neustart mit Administratorrechten

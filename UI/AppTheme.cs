@@ -78,15 +78,14 @@ namespace DataClean.UI {
 
         /// <summary>
         /// Liest die Benutzereinstellung (System/Light/Dark) und baut die Palette neu auf.
-        /// Standard bei "System"/leer ist dunkel, passend zum Dashboard-Design.
         /// </summary>
         public static void Refresh() {
             Apply(ResolveDark());
         }
 
-        private static bool ResolveDark() {
-            string mode = Properties.Settings.Default.themeOverride;
-            return !string.Equals(mode, "Light", StringComparison.OrdinalIgnoreCase);
+        /// <summary>Der Modus, den die Einstellung und Windows gerade verlangen.</summary>
+        public static bool ResolveDark() {
+            return Services.ThemeMode.IsDark(Properties.Settings.Default.themeOverride, Services.ThemeMode.SystemUsesDarkMode());
         }
 
         private static void Apply(bool dark) {
